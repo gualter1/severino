@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Robot Agent Manifest",
+  "type": "object",
+  "required": ["id", "role", "version", "capabilities", "reportTemplate"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^robot-[a-z0-9-]+$" },
+    "role": { "type": "string", "enum": ["backend", "frontend", "qa", "devops", "security", "sales", "product", "research", "data", "tech-lead"] },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "model": { "type": "string", "description": "Modelo LLM a usar (ex: openrouter/anthropic/claude-3.5-sonnet)" },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Lista de capacidades/ferramentas que este robô pode requisitar no Resource Broker"
+    },
+    "allowedDomains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Domínios de conhecimento permitidos (para isolamento)"
+    },
+    "reportTemplate": { "type": "string", "const": "execution-report-v1" },
+    "learning": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "mode": { "type": "string", "enum": ["report-only"], "default": "report-only" }
+      },
+      "default": { "enabled": false, "mode": "report-only" }
+    },
+    "resourceLimits": {
+      "type": "object",
+      "properties": {
+        "maxDurationMs": { "type": "number", "default": 1800000 },
+        "maxTokens": { "type": "number", "default": 100000 },
+        "maxToolCalls": { "type": "number", "default": 50 }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

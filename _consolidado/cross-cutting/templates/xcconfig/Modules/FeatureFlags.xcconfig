@@ -1,0 +1,19 @@
+// =============================================================================
+// FeatureFlags.xcconfig – LaunchDarkly / Firebase Remote Config
+// Consuma via wrapper tipado em Swift, nunca via string solta.
+// =============================================================================
+
+// MARK: – Provider
+FEATURE_FLAG_PROVIDER = launchdarkly
+LAUNCHDARKLY_SDK_KEY = $(LAUNCHDARKLY_SDK_KEY)
+FIREBASE_API_KEY = $(FIREBASE_API_KEY)
+
+// MARK: – Local overrides por config
+MOCK_API = NO
+ENABLE_EXPERIMENTAL_FEATURES = NO
+ENABLE_OFFLINE_MODE = NO
+ENABLE_NEW_ONBOARDING = NO
+
+// MARK: – Polling / caching
+FEATURE_FLAG_POLL_INTERVAL_SECONDS = 300
+FEATURE_FLAG_CACHE_TTL_SECONDS = 3600

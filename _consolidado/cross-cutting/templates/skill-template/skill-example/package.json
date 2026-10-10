@@ -1,0 +1,27 @@
+{
+  "name": "file-vault-skill",
+  "version": "1.0.0",
+  "description": "Secure file vault skill with dual-compat V1/V2 support",
+  "main": "SKILL.md",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:v1": "OPENCODE_MOCK=true OPENCODE_VERSION=v1 vitest run",
+    "test:v2": "OPENCODE_MOCK=true OPENCODE_VERSION=v2 vitest run",
+    "check:zero-deps": "node ./scripts/check-zero-deps.mjs"
+  },
+  "keywords": ["opencode-skill", "claude-code", "cursor"],
+  "author": "Towards",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

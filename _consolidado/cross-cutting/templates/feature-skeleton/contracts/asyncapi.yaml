@@ -1,0 +1,69 @@
+asyncapi: "3.0.0"
+info:
+  title: Feature Sample — AsyncAPI Contract
+  version: "1.0.0"
+  description: "Domain events published by feature.skeleton (ADR-003 / cc-switch device-event pattern)"
+servers:
+  production:
+    host: "mq.internal:5672"
+    protocol: "amqp"
+    description: "Production AMQP broker"
+channels:
+  featureSampleEvents:
+    address: "feature.sample.events"
+    messages:
+      sampleCreated:
+        $ref: "#/components/messages/SampleEntityCreated"
+      sampleActivated:
+        $ref: "#/components/messages/SampleEntityActivated"
+operations:
+  publishSampleCreated:
+    action: send
+    channel:
+      $ref: "#/channels/featureSampleEvents"
+    messages:
+      - $ref: "#/components/messages/SampleEntityCreated"
+  publishSampleActivated:
+    action: send
+    channel:
+      $ref: "#/channels/featureSampleEvents"
+    messages:
+      - $ref: "#/components/messages/SampleEntityActivated"
+components:
+  messages:
+    SampleEntityCreated:
+      name: "feature.sample.created.v1"
+      title: "Sample entity created"
+      payload:
+        $ref: "#/components/schemas/SampleEntityCreatedPayload"
+      correlationId:
+        location: $message.header#/correlationId
+    SampleEntityActivated:
+      name: "feature.sample.activated.v1"
+      title: "Sample entity activated"
+      payload:
+        $ref: "#/components/schemas/SampleEntityActivatedPayload"
+      correlationId:
+        location: $message.header#/correlationId
+  schemas:
+    SampleEntityCreatedPayload:
+      type: object
+      required: ["entityId", "name"]
+      properties:
+        entityId:
+          type: string
+          pattern: "^[a-f0-9-]{36}$"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 128
+    SampleEntityActivatedPayload:
+      type: object
+      required: ["entityId", "previousStatus"]
+      properties:
+        entityId:
+          type: string
+          pattern: "^[a-f0-9-]{36}$"
+        previousStatus:
+          type: string
+          enum: ["INACTIVE", "ACTIVE", "ARCHIVED"]

@@ -1,0 +1,291 @@
+# Multi-Language Feature CI (ADR-027)
+# Detects language automatically and runs appropriate quality gates
+# Supports: TypeScript, Go, Rust, Python
+
+name: Feature CI
+
+on:
+  pull_request:
+    paths:
+      - 'src/features/**'
+      - '.github/workflows/feature-ci.yml'
+  workflow_call:
+
+jobs:
+  detect-language:
+    name: Detect Language
+    runs-on: ubuntu-latest
+    outputs:
+      language: ${{ steps.detect.outputs.language }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect project language
+        id: detect
+        run: |
+          LANGUAGE=""
+          if [ -f "package.json" ]; then
+            LANGUAGE="typescript"
+          elif [ -f "go.mod" ]; then
+            LANGUAGE="go"
+          elif [ -f "Cargo.toml" ]; then
+            LANGUAGE="rust"
+          elif [ -f "pyproject.toml" ]; then
+            LANGUAGE="python"
+          fi
+          echo "language=$LANGUAGE" >> $GITHUB_OUTPUT
+          echo "Detected language: $LANGUAGE"
+
+  # TypeScript/Node.js Pipeline
+  validate-typescript:
+    name: Validate TypeScript
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'typescript'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test with Coverage
+        run: npm run test:coverage
+
+      - name: Validate Structure
+        run: npm run validate
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: typescript
+
+  # Go Pipeline
+  validate-go:
+    name: Validate Go
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'go'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Format check
+        run: |
+          if [ "$(gofmt -l .)" ]; then
+            echo "Code is not formatted:"
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+
+      - name: Test with Coverage
+        run: |
+          go test -v -race -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1 < 80) exit 1}'
+
+      - name: Mutation Testing
+        run: |
+          go install github.com/ricardomaraschini/gremlins/cmd/gremlins@latest
+          gremlins unleash --timeout=60s ./...
+
+      - name: Security Scan
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.out
+          flags: go
+
+  # Rust Pipeline
+  validate-rust:
+    name: Validate Rust
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'rust'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Test with Coverage
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --out Xml --coverage-type line --branch --fail-under 80
+
+      - name: Mutation Testing
+        run: |
+          cargo install cargo-mutants
+          cargo mutants --json | jq '.mutation_score' | awk '{if ($1 < 0.8) exit 1}'
+
+      - name: Security Audit
+        run: |
+          cargo install cargo-audit
+          cargo audit
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: cobertura.xml
+          flags: rust
+
+  # Python Pipeline
+  validate-python:
+    name: Validate Python
+    needs: detect-language
+    if: needs.detect-language.outputs.language == 'python'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Format check
+        run: uv run ruff format --check src tests
+
+      - name: Lint
+        run: uv run ruff check src tests
+
+      - name: Type check
+        run: uv run mypy src
+
+      - name: Test with Coverage
+        run: uv run pytest --cov=src --cov-report=xml --cov-fail-under=80 --cov-branch --cov-fail-under-branch=70
+
+      - name: Mutation Testing
+        run: |
+          uv run mutmut run --paths-to-mutate=src/ --runner="pytest -x"
+          uv run mutmut results | grep "mutation score" | awk '{if ($NF < 80) exit 1}'
+
+      - name: Security Scan
+        run: |
+          uv pip install bandit[toml]
+          uv run bandit -r src -f json -o bandit-report.json || true
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: python
+
+  # Security Jobs (run for all languages)
+  security:
+    name: Security Scan
+    needs: detect-language
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+
+  # Docker Build (run for all languages)
+  docker:
+    name: Docker Build
+    needs: [detect-language, validate-typescript, validate-go, validate-rust, validate-python, security]
+    if: always() && needs.detect-language.outputs.language != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: feature-${{ github.event.repository.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Summary
+  summary:
+    name: CI Summary
+    needs: [detect-language, validate-typescript, validate-go, validate-rust, validate-python, security, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "Language: ${{ needs.detect-language.outputs.language }}"
+          echo "TypeScript: ${{ needs.validate-typescript.result }}"
+          echo "Go: ${{ needs.validate-go.result }}"
+          echo "Rust: ${{ needs.validate-rust.result }}"
+          echo "Python: ${{ needs.validate-python.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Docker: ${{ needs.docker.result }}"
+
+          # Fail if any required job failed
+          FAILED=0
+          for job in validate-typescript validate-go validate-rust validate-python security docker; do
+            RESULT="${{ needs.$job.result }}"
+            if [ "$RESULT" = "failure" ] || [ "$RESULT" = "cancelled" ]; then
+              echo "❌ $job failed"
+              FAILED=1
+            fi
+          done
+          exit $FAILED

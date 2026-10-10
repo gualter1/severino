@@ -1,0 +1,38 @@
+{
+  "id": "robot-test-team-3-frontend-2",
+  "role": "frontend",
+  "version": "1.0.0",
+  "name": "Test Team 3 frontend",
+  "description": "frontend specialist",
+  "model": "openrouter/anthropic/claude-3.5-sonnet",
+  "capabilities": [
+    "github-cli",
+    "npm-scripts",
+    "browser",
+    "storybook",
+    "playwright"
+  ],
+  "allowedDomains": [
+    "frontend",
+    "qa"
+  ],
+  "reportTemplate": "execution-report-v1",
+  "learning": {
+    "enabled": false,
+    "mode": "report-only"
+  },
+  "resourceLimits": {
+    "maxDurationMs": 1800000,
+    "maxTokens": 100000,
+    "maxToolCalls": 50
+  },
+  "metadata": {
+    "createdBy": "severino-factory",
+    "createdAt": "2026-10-10T18:40:07.536Z",
+    "skillKits": [
+      "01-engenharia/frontend-ux-kit"
+    ],
+    "primaryLanguage": "typescript",
+    "framework": "react"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@templates/async-store",
+  "version": "1.0.0",
+  "description": "Async Store / Event Sourcing Template - Canonical implementation per ADR-002",
+  "main": "src/store.ts",
+  "types": "src/store.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts tests/**/*.ts"
+  },
+  "keywords": [
+    "event-sourcing",
+    "async-store",
+    "cqrs",
+    "event-store",
+    "projections",
+    "outbox-pattern"
+  ],
+  "author": "Towards - Senior Full-Stack Engineer",
+  "license": "MIT",
+  "dependencies": {
+    "uuid": "^9.0.0",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "dashboard": {
+    "title": "DX Telemetry - Template Adoption Metrics",
+    "uid": "dx-telemetry",
+    "tags": ["dx", "telemetry", "template", "adoption", "adr-028"],
+    "timezone": "utc",
+    "refresh": "5m",
+    "time": { "from": "now-7d", "to": "now" },
+    "templating": {
+      "list": [
+        {
+          "name": "projectHash",
+          "type": "query",
+          "datasource": "Prometheus",
+          "refresh": 1,
+          "query": "label_values(dx_telemetry_events_total, project_hash)",
+          "allValue": ".*",
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Template Adoption Rate",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "count by (project_hash) (dx_telemetry_events_total{type=\"init\"})", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 1 }, { "color": "green", "value": 5 } ] } } }
+      },
+      {
+        "id": 2,
+        "title": "Time to First Green (P50/P95)",
+        "type": "timeseries",
+        "gridPos": { "x": 6, "y": 0, "w": 18, "h": 4 },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum(rate(dx_first_test_duration_ms_bucket[5m])) by (project_hash, le))", "legendFormat": "{{project_hash}} - P50", "refId": "A" },
+          { "expr": "histogram_quantile(0.95, sum(rate(dx_first_test_duration_ms_bucket[5m])) by (project_hash, le))", "legendFormat": "{{project_hash}} - P95", "refId": "B" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 300000 }, { "color": "red", "value": 600000 } ] } } }
+      },
+      {
+        "id": 3,
+        "title": "Init Duration Trend",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "avg by (project_hash) (dx_init_duration_ms)", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms" } }
+      },
+      {
+        "id": 4,
+        "title": "First Test Pass Rate",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 4, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(dx_first_test_total{passed=\"true\"}[1h])) by (project_hash) / sum(rate(dx_first_test_total[1h])) by (project_hash) * 100", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 80 }, { "color": "green", "value": 95 } ] } } }
+      },
+      {
+        "id": 5,
+        "title": "CI Metrics - Lint Fixes / Typecheck Errors",
+        "type": "timeseries",
+        "gridPos": { "x": 18, "y": 4, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "avg by (project_hash) (dx_ci_lint_fixes)", "legendFormat": "{{project_hash}} - lint fixes", "refId": "A" },
+          { "expr": "avg by (project_hash) (dx_ci_typecheck_errors)", "legendFormat": "{{project_hash}} - typecheck errors", "refId": "B" }
+        ],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 20 } ] } } }
+      },
+      {
+        "id": 6,
+        "title": "Coverage at First CI Run",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "avg by (project_hash) (dx_ci_coverage_lines)", "legendFormat": "{{project_hash}} - lines", "refId": "A" },
+          { "expr": "avg by (project_hash) (dx_ci_coverage_branches)", "legendFormat": "{{project_hash}} - branches", "refId": "B" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 70 }, { "color": "green", "value": 80 } ] } } }
+      },
+      {
+        "id": 7,
+        "title": "Validation Pass Rate",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(dx_ci_total{validation_passed=\"true\"}[1h])) by (project_hash) / sum(rate(dx_ci_total[1h])) by (project_hash) * 100", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 90 }, { "color": "green", "value": 100 } ] } } }
+      },
+      {
+        "id": 8,
+        "title": "Migration V1→V2 Success Rate",
+        "type": "stat",
+        "gridPos": { "x": 18, "y": 8, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(dx_migration_total{success=\"true\"}[24h])) by (project_hash) / sum(rate(dx_migration_total[24h])) by (project_hash) * 100", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "yellow", "value": 80 }, { "color": "green", "value": 100 } ] } } }
+      },
+      {
+        "id": 9,
+        "title": "Top 5 Gap Patterns (Typecheck Errors)",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 12, "w": 24, "h": 6 },
+        "targets": [
+          { "expr": "topk(5, sum by (error_pattern) (dx_typecheck_error_pattern_total))", "format": "table", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "align": "left" } } }
+      },
+      {
+        "id": 10,
+        "title": "Language Distribution",
+        "type": "piechart",
+        "gridPos": { "x": 0, "y": 18, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "count by (language) (dx_project_language)", "legendFormat": "{{language}}", "refId": "A" }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Rework Rate (Commits After 'Feat Complete')",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 18, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "avg by (project_hash) (dx_feature_rework_commits)", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 2 }, { "color": "red", "value": 5 } ] } } }
+      },
+      {
+        "id": 12,
+        "title": "Time to Production (Days)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 24, "w": 24, "h": 6 },
+        "targets": [
+          { "expr": "avg by (project_hash) (dx_feature_time_to_prod_days)", "legendFormat": "{{project_hash}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "d", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 3 }, { "color": "red", "value": 7 } ] } } }
+      }
+    ]
+  },
+  "overwrite": true
+}

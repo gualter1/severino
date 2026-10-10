@@ -1,0 +1,35 @@
+{
+  "name": "@severino/mcp-v2-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP v2 SDK for Agent Developers (ADR-029) — Monorepo with pnpm + Turborepo",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"packages/**/*.ts\"",
+    "publish": "turbo run build && changeset publish",
+    "cli:dev": "pnpm --filter @severino/mcp-v2-cli dev",
+    "cli:inspect": "pnpm --filter @severino/mcp-v2-cli inspect",
+    "cli:certify": "pnpm --filter @severino/mcp-v2-cli certify",
+    "cli:init": "pnpm --filter @severino/mcp-v2-cli init"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "prettier": "^3.2.0",
+    "@changesets/cli": "^2.27.0",
+    "vitest": "^1.4.0",
+    "@vitest/coverage-v8": "^1.4.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.3.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

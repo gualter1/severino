@@ -1,0 +1,42 @@
+{
+  "name": "feature-skeleton",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical feature skeleton V2 (ADR-026) — copy to src/features/<name> and customize feature.template.yml. Incorporates Full Pilot learnings from nodebestpractices, AionUi, ECC.",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint src tests",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:contract": "vitest run tests/contract",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "validate": "node ../../../_consolidado/cross-cutting/templates/feature-skeleton/scripts/validate-feature-structure.js . --strict",
+    "dx:init": "node ../../../_consolidado/cross-cutting/templates/feature-skeleton/scripts/dx-telemetry.js init",
+    "dx:report": "node ../../../_consolidado/cross-cutting/templates/feature-skeleton/scripts/dx-telemetry.js report"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.4.0",
+    "tsx": "^4.7.0",
+    "vitest": "^1.4.0",
+    "@vitest/coverage-v8": "^1.4.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.3.0",
+    "prettier": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

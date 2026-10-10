@@ -1,0 +1,68 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/2025-06-18/manifest.json",
+  "name": "feature.sample",
+  "version": "1.0.0",
+  "description": "MCP server exposing feature.skeleton sample entity capabilities (skillpper-inspired)",
+  "author": "team-backend-architecture",
+  "license": "MIT",
+  "capabilities": {
+    "tools": [
+      {
+        "name": "feature.sample.create",
+        "description": "Create a new sample entity",
+        "inputSchema": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string", "minLength": 3, "maxLength": 128 },
+            "metadata": { "type": "object", "additionalProperties": true }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "feature.sample.get",
+        "description": "Get sample entity by ID",
+        "inputSchema": {
+          "type": "object",
+          "required": ["entityId"],
+          "properties": {
+            "entityId": { "type": "string", "pattern": "^[a-f0-9-]{36}$" }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "feature.sample.activate",
+        "description": "Activate a sample entity",
+        "inputSchema": {
+          "type": "object",
+          "required": ["entityId"],
+          "properties": {
+            "entityId": { "type": "string", "pattern": "^[a-f0-9-]{36}$" }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "resources": [
+      {
+        "uri": "feature://sample/entities",
+        "name": "Sample Entities List",
+        "mimeType": "application/json",
+        "description": "Paginated list of sample entities"
+      },
+      {
+        "uri": "feature://sample/entities/{entityId}",
+        "name": "Sample Entity Detail",
+        "mimeType": "application/json",
+        "description": "Single sample entity by UUID"
+      }
+    ]
+  },
+  "server": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["dist/interfaces/mcp/server.js"]
+  }
+}

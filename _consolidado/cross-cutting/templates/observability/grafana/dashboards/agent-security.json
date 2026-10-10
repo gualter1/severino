@@ -1,0 +1,106 @@
+{
+  "dashboard": {
+    "title": "Agent Security",
+    "uid": "agent-security",
+    "tags": ["agent", "security", "compliance", "adr-010", "adr-014", "adr-017"],
+    "timezone": "utc",
+    "refresh": "1m",
+    "time": { "from": "now-24h", "to": "now" },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Sanitization Failures (SHOULD BE 0)",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "sum(increase(agent_security_event_total{type=\\\"sanitization_failure\\\"}[24h]))", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } } },
+        "alert": { "name": "Sanitization Failure Detected", "condition": "A", "frequency": "1m", "for": "0m", "annotations": { "summary": "PII sanitization failure!", "description": "Agent failed to sanitize PII in logs" } }
+      },
+      {
+        "id": 2,
+        "title": "Permission Denied Events",
+        "type": "timeseries",
+        "gridPos": { "x": 6, "y": 0, "w": 18, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_security_event_total{type=\\\"permission_denied\\\"}[5m])) by (agent, permission)", "legendFormat": "{{agent}} - {{permission}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } }
+      },
+      {
+        "id": 3,
+        "title": "Rate Limit Hits",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_security_event_total{type=\\\"rate_limit\\\"}[5m])) by (agent, endpoint)", "legendFormat": "{{agent}} - {{endpoint}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 100 } ] } } }
+      },
+      {
+        "id": 4,
+        "title": "Injection Attempts",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_security_event_total{type=\\\"injection_attempt\\\"}[5m])) by (agent, tool)", "legendFormat": "{{agent}} - {{tool}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } },
+        "alert": { "name": "Injection Attempt Detected", "condition": "A", "frequency": "1m", "for": "0m", "annotations": { "summary": "Potential injection attack on {{ $labels.agent }}", "description": "Tool: {{ $labels.tool }}" } }
+      },
+      {
+        "id": 5,
+        "title": "Audit Log Integrity",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 8, "w": 24, "h": 6 },
+        "targets": [
+          { "expr": "sum by (agent, level) (rate(agent_audit_log_total[5m]))", "format": "table", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "align": "center" } } }
+      },
+      {
+        "id": 6,
+        "title": "mTLS Connection Status",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 14, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "agent_mtls_connection_status", "format": "table", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "align": "center" }, "thresholds": { "steps": [ { "color": "green", "value": "verified" }, { "color": "yellow", "value": "unverified" }, { "color": "red", "value": "failed" } ] } } }
+      },
+      {
+        "id": 7,
+        "title": "JWT Token Expiry Distribution",
+        "type": "heatmap",
+        "gridPos": { "x": 12, "y": 14, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "agent_jwt_token_expiry_seconds", "format": "heatmap", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s" } }
+      },
+      {
+        "id": 8,
+        "title": "Compliance Status (LGPD/SOC2)",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 20, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "agent_compliance_lgpd_status", "refId": "A" },
+          { "expr": "agent_compliance_soc2_status", "refId": "B" }
+        ],
+        "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "NON_COMPLIANT", "color": "red" }, "1": { "text": "COMPLIANT", "color": "green" } } } ] } }
+      },
+      {
+        "id": 9,
+        "title": "Security Events by Type (24h)",
+        "type": "barchart",
+        "gridPos": { "x": 6, "y": 20, "w": 18, "h": 6 },
+        "targets": [
+          { "expr": "sum(increase(agent_security_event_total[24h])) by (type)", "legendFormat": "{{type}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } }
+      }
+    ]
+  },
+  "overwrite": true
+}

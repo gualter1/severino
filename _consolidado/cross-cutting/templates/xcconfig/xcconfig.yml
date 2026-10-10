@@ -1,0 +1,29 @@
+# xcconfig.yml – Schema de validação (inspirado em yamllint)
+# Utilizado por scripts/validate-configs.sh (pode ser extensível via npm package).
+# Declara chaves obrigatórias, tipos e valores default.
+# -------------------------------------------------------------------
+required_keys:
+  - DEVELOPMENT_TEAM_ID
+  - API_KEY
+  - ANALYTICS_API_KEY
+
+optional_keys:
+  - PROVISIONING_PROFILE
+  - PROVISIONING_PROFILE_RELEASE
+  - LAUNCHDARKLY_SDK_KEY
+  - FIREBASE_API_KEY
+  - CERT_PIN_PRIMARY
+  - CERT_PIN_BACKUP
+
+# Tipos simples – todos string, mas podem ter regex de validação futura.
+patterns:
+  DEVELOPMENT_TEAM_ID: '^[A-Z0-9]{10}$'
+  API_KEY: '^.{10,}$'
+  ANALYTICS_API_KEY: '^.{10,}$'
+  LAUNCHDARKLY_SDK_KEY: '^.{10,}$'
+  FIREBASE_API_KEY: '^.{10,}$'
+  CERT_PIN_PRIMARY: '^[A-Fa-f0-9]{64}$'
+  CERT_PIN_BACKUP: '^[A-Fa-f0-9]{64}$'
+
+# Metadados de versão do schema – permite evolução sem breaking changes.
+schema_version: 1

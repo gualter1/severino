@@ -1,0 +1,64 @@
+name: skill-portability
+
+"on":
+  push:
+    branches: [main, master]
+    paths:
+      - "src/capability/**"
+      - "src/shape/**"
+      - "src/core/**"
+      - "examples/**"
+      - "tests/portability/**"
+      - ".github/workflows/skill-portability.yml"
+  pull_request:
+    paths:
+      - "src/capability/**"
+      - "src/shape/**"
+      - "src/core/**"
+      - "examples/**"
+      - "tests/portability/**"
+
+jobs:
+  portability-matrix:
+    name: "${{ matrix.harness }} × shape-${{ matrix.shape }} × caps-${{ matrix.capabilities }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        harness: [claude-code, open-code, generic]
+        shape: [A, B, C]
+        capabilities: [min, full]
+    env:
+      SKILL_HARNESS: ${{ matrix.harness }}
+      SKILL_SHAPE: ${{ matrix.shape }}
+      SKILL_CAPS: ${{ matrix.capabilities }}
+      OPENCODE_RUNTIME: v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: test matrix cell
+        run: >
+          node --test
+          "tests/portability/*.test.js"
+          --test-name-pattern=".*"
+        env:
+          SKILL_HARNESS: ${{ matrix.harness }}
+          SKILL_SHAPE: ${{ matrix.shape }}
+          SKILL_CAPS: ${{ matrix.capabilities }}
+      - name: report coverage
+        if: always()
+        run: node run_tests.js --shape ${{ matrix.shape }} --caps ${{ matrix.capabilities }} || true
+
+  badge:
+    name: publish portability badge
+    needs: portability-matrix
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "portability matrix green"

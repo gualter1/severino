@@ -1,0 +1,148 @@
+openapi: "3.0.3"
+info:
+  title: Feature Sample — API Contract
+  version: "1.0.0"
+  description: "Canonical contract for the feature.skeleton sample entity feature (ADR-001 / contract-first)"
+servers:
+  - url: "http://localhost:3000"
+    description: "Local development server"
+paths:
+  /sample/entities:
+    get:
+      summary: List sample entities with pagination
+      operationId: listSamples
+      tags:
+        - sample
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["ACTIVE", "INACTIVE", "ARCHIVED"]
+      responses:
+        "200":
+          description: Paginated list of sample entities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleEntityPaginated"
+        "400":
+          description: Invalid query parameters
+    post:
+      summary: Create a new sample entity
+      operationId: createSample
+      tags:
+        - sample
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSampleRequest"
+      responses:
+        "201":
+          description: Sample entity created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleEntity"
+        "400":
+          description: Validation error
+  /sample/entities/{entityId}:
+    get:
+      summary: Get a single sample entity by ID
+      operationId: getSampleById
+      tags:
+        - sample
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-f0-9-]{36}$"
+      responses:
+        "200":
+          description: Sample entity data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleEntity"
+        "404":
+          description: Sample entity not found
+    patch:
+      summary: Update sample entity name/status
+      operationId: updateSampleEntity
+      tags:
+        - sample
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSampleRequest"
+      responses:
+        "200":
+          description: Updated sample entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SampleEntity"
+        "404":
+          description: Sample entity not found
+components:
+  schemas:
+    SampleEntity:
+      allOf:
+        - $ref: "#/components/schemas/_baseEntity"
+        - type: object
+          required: ["name", "status"]
+          properties:
+            name:
+              type: string
+              minLength: 3
+              maxLength: 128
+            status:
+              type: string
+              enum: ["ACTIVE", "INACTIVE", "ARCHIVED"]
+            metadata:
+              type: object
+              additionalProperties: true
+    _baseEntity:
+      type: object
+      required: ["id", "createdAt", "updatedAt"]
+      properties:
+        id:
+          type: string
+          pattern: "^[a-f0-9-]{36}$"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SampleEntityPaginated:
+      type: object
+      required: ["items", "total"]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SampleEntity"
+        total:
+          type: integer
+          minimum: 0

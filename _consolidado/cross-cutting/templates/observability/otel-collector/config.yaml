@@ -1,0 +1,173 @@
+# OpenTelemetry Collector Configuration (ADR-030)
+# Agent Observability Stack: OTel + JSONL Audit + W3C TraceContext
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'agent-metrics'
+          static_configs:
+            - targets: ['host.docker.internal:9464']
+          metrics_path: /metrics
+        - job_name: 'otel-collector'
+          static_configs:
+            - targets: ['localhost:8888']
+
+  # Filelog receiver for JSONL audit logs
+  filelog:
+    include:
+      - /var/log/agents/**/audit.log
+    operators:
+      - type: json_parser
+      - type: move
+        from: attributes.timestamp
+        to: timestamp
+      - type: move
+        from: attributes.trace_id
+        to: trace_id
+      - type: move
+        from: attributes.span_id
+        to: span_id
+      - type: move
+        from: attributes.level
+        to: severity_text
+      - type: severity_parser
+        parse_from: severity_text
+
+processors:
+  # Batch processor for efficient export
+  batch:
+    timeout: 5s
+    send_batch_max_size: 1000
+    send_batch_size: 800
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # Resource detection
+  resource:
+    attributes:
+      - key: service.name
+        from_attribute: service
+        action: upsert
+      - key: service.version
+        from_attribute: agent_id
+        action: upsert
+      - key: deployment.environment
+        value: "${DEPLOYMENT_ENVIRONMENT}"
+        action: upsert
+
+  # Tail sampling for traces (keep errors + slow requests)
+  tailsampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 1000
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 5000
+      - name: security
+        type: string_attribute
+        string_attribute:
+          key: event
+          values: ["security_event"]
+      - name: handoffs
+        type: string_attribute
+        string_attribute:
+          key: event
+          values: ["handoff"]
+
+  # Transform processor for metrics
+  transform:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["service.name"], resource["service.name"])
+          - set(attributes["agent.id"], resource["agent.id"])
+
+  # K8s attributes processor (if running in K8s)
+  k8sattributes:
+    auth_type: "service_account"
+    passthrough: false
+    extract:
+      metadata:
+        - k8s.pod.name
+        - k8s.namespace.name
+        - k8s.deployment.name
+        - k8s.container.name
+      labels:
+        - k8s.pod.labels.app
+        - k8s.pod.labels.version
+
+exporters:
+  # Prometheus for metrics
+  prometheus:
+    endpoint: 0.0.0.0:9464
+    namespace: agent
+    send_timestamps: true
+    metric_expiration: 60m
+
+  # Loki for logs (JSONL audit)
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    labels:
+      service: "{{.service}}"
+      agent_id: "{{.agent_id}}"
+      level: "{{.level}}"
+    tenant_id: ""
+
+  # Tempo for traces
+  tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # OTLP for forwarding to other collectors
+  otlp:
+    endpoint: "${OTLP_ENDPOINT}"
+    tls:
+      insecure: true
+
+  # Debug exporter (dev only)
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 100
+
+service:
+  extensions: [health_check, pprof, zpages]
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, tailsampling, k8sattributes]
+      exporters: [tempo, debug]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, batch, resource, transform, k8sattributes]
+      exporters: [prometheus, debug]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [memory_limiter, batch, resource, k8sattributes]
+      exporters: [loki, debug]

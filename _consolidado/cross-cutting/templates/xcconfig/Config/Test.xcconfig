@@ -1,0 +1,28 @@
+// =============================================================================
+// Test.xcconfig – Overrides para Unit/UI Tests
+// =============================================================================
+
+#include "Debug.xcconfig"
+
+// MARK: – Bundle Identifier
+PRODUCT_BUNDLE_IDENTIFIER = com.example.app.tests
+PRODUCT_NAME = AppTests
+
+// MARK: – Testing
+ENABLE_TESTABILITY = YES
+ONLY_ACTIVE_ARCH = YES
+
+// MARK: – Feature flags (Test overrides)
+ENABLE_LOGGING = YES
+ENABLE_ANALYTICS = NO
+MOCK_API = YES
+
+// MARK: – Networking (Test – localhost / mock server)
+API_BASE_URL = http://localhost:8080
+API_TIMEOUT_SECONDS = 10
+
+// MARK: – Logging
+LOG_LEVEL = debug
+
+// MARK: – Don't sign test helper apps in CI unnecessarily
+CODE_SIGNING_ALLOWED = YES

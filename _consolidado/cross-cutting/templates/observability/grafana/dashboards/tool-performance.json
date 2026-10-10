@@ -1,0 +1,87 @@
+{
+  "dashboard": {
+    "title": "Tool Performance",
+    "uid": "tool-performance",
+    "tags": ["agent", "tools", "performance", "latency", "adr-030"],
+    "timezone": "utc",
+    "refresh": "30s",
+    "time": { "from": "now-1h", "to": "now" },
+    "panels": [
+      {
+        "id": 1,
+        "title": "P50 / P95 / P99 Latency by Tool",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 6 },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum(rate(agent_tool_call_duration_ms_bucket[5m])) by (agent, tool, le))", "legendFormat": "{{agent}}/{{tool}} - P50", "refId": "A" },
+          { "expr": "histogram_quantile(0.95, sum(rate(agent_tool_call_duration_ms_bucket[5m])) by (agent, tool, le))", "legendFormat": "{{agent}}/{{tool}} - P95", "refId": "B" },
+          { "expr": "histogram_quantile(0.99, sum(rate(agent_tool_call_duration_ms_bucket[5m])) by (agent, tool, le))", "legendFormat": "{{agent}}/{{tool}} - P99", "refId": "C" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1000 }, { "color": "red", "value": 5000 } ] } } },
+        "alert": { "name": "P99 > 10s", "condition": "C", "frequency": "1m", "for": "5m", "annotations": { "summary": "Tool {{ $labels.tool }} on agent {{ $labels.agent }} P99 > 10s", "description": "P99 latency: ${{ $value }}ms" } }
+      },
+      {
+        "id": 2,
+        "title": "Tool Call Volume (req/s)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 6, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_tool_call_total[1m])) by (tool)", "legendFormat": "{{tool}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } }
+      },
+      {
+        "id": 3,
+        "title": "Tool Error Rate by Type",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 6, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_tool_call_total{status=\\\"error\\\"}[5m])) by (tool, error_type) / sum(rate(agent_tool_call_total[5m])) by (tool) * 100", "legendFormat": "{{tool}} - {{error_type}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] } } }
+      },
+      {
+        "id": 4,
+        "title": "Slowest Tools (P99) - Top 10",
+        "type": "barchart",
+        "gridPos": { "x": 0, "y": 10, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "topk(10, histogram_quantile(0.99, sum(rate(agent_tool_call_duration_ms_bucket[5m])) by (agent, tool, le)))", "legendFormat": "{{agent}}/{{tool}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms" } }
+      },
+      {
+        "id": 5,
+        "title": "Most Called Tools - Top 10",
+        "type": "barchart",
+        "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "topk(10, sum(rate(agent_tool_call_total[5m])) by (agent, tool))", "legendFormat": "{{agent}}/{{tool}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } }
+      },
+      {
+        "id": 6,
+        "title": "Latency Heatmap by Tool",
+        "type": "heatmap",
+        "gridPos": { "x": 0, "y": 16, "w": 24, "h": 6 },
+        "targets": [
+          { "expr": "sum(rate(agent_tool_call_duration_ms_bucket[5m])) by (tool, le)", "format": "heatmap", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms" } }
+      },
+      {
+        "id": 7,
+        "title": "Streaming Tool Performance",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 22, "w": 24, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_stream_chunk_total[1m])) by (agent, tool)", "legendFormat": "{{agent}}/{{tool}} - chunks/s", "refId": "A" },
+          { "expr": "sum(rate(agent_stream_duration_ms_sum[1m])) / sum(rate(agent_stream_duration_ms_count[1m])) by (agent, tool)", "legendFormat": "{{agent}}/{{tool}} - avg chunk latency", "refId": "B" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms" } }
+      }
+    ]
+  },
+  "overwrite": true
+}

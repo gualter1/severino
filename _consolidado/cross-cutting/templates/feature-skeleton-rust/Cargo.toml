@@ -1,0 +1,83 @@
+[package]
+name = "feature-skeleton-rust"
+version = "2.0.0"
+edition = "2021"
+description = "Canonical feature skeleton V2 (ADR-027) — Rust variant"
+license = "MIT"
+
+[dependencies]
+# HTTP Framework
+axum = { version = "0.7", features = ["macros"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "normalize-path"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# Logging & Observability (ADR-030)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "fmt"] }
+tracing-opentelemetry = "0.23"
+opentelemetry = { version = "0.23", features = ["trace", "metrics"] }
+opentelemetry-sdk = { version = "0.23", features = ["trace", "metrics", "logs"] }
+opentelemetry-otlp = { version = "0.14", features = ["tonic"] }
+opentelemetry-prometheus = "0.14"
+opentelemetry-http = "0.14"
+metrics-exporter-prometheus = "0.14"
+
+# Async Runtime
+tokio = { version = "1.0", features = ["full", "tracing"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "uuid", "chrono", "json", "migrate"] }
+
+# Config
+config = { version = "0.13", features = ["yaml", "env"] }
+
+# Error Handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# UUID
+uuid = { version = "1.0", features = ["v4", "serde", "fast-rng"] }
+
+# CLI
+clap = { version = "4.4", features = ["derive", "env"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP Client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Testing
+#[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.11"
+wiremock = "0.5"
+testcontainers = { version = "0.16", features = ["postgres"] }
+
+# Mutation Testing
+#[dev-dependencies]
+cargo-mutants = "0.20"
+
+[features]
+default = ["std"]
+std = []
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+debug = true
+
+[workspace]
+members = []

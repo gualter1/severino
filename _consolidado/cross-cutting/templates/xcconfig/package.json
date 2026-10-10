@@ -1,0 +1,21 @@
+{
+  "name": "xcconfig-template",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "generate-secrets": "bash ./scripts/generate-secrets.sh",
+    "validate-configs": "bash ./scripts/validate-configs.sh"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run validate-configs"
+    }
+  },
+  "lint-staged": {
+    "*_xcconfig": "git add"
+  }
+}

@@ -1,0 +1,68 @@
+# ADR-022 CI: Dual-Runtime Compat-Layer Validation (V1 + V2)
+name: compat-layer-ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+defaults:
+  run:
+    working-directory: .
+
+jobs:
+  test-matrix:
+    name: Test on OpenCode ${{ matrix.opencode-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        opencode-version: [v1, v2]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install (devDeps only)
+        run: npm ci
+
+      - name: Run Tests with Coverage (${{ matrix.opencode-version }})
+        run: npx vitest run --coverage
+        env:
+          OPENCODE_MOCK: true
+          OPENCODE_VERSION: ${{ matrix.opencode-version }}
+          NODE_ENV: test
+
+  zero-deps-guard:
+    name: Zero-Dependency Guard (ADR-022)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install (devDeps only)
+        run: npm ci
+
+      - name: Assert Zero Runtime Dependencies
+        run: |
+          echo "=== Verificando Zero-Dep (ADR-022) ==="
+          PROD_COUNT=$(npm ls --prod --parseable 2>/dev/null | grep -v '^$' | wc -l | tr -d ' ')
+          echo "Prod deps lines: $PROD_COUNT"
+          if [ "$PROD_COUNT" != "0" ]; then
+            echo "::error::ZERO-DEP VIOLATION: $PROD_COUNT runtime deps encontradas."
+            npm ls --prod 2>&1 || true
+            exit 1
+          fi
+          echo "✅ Zero-Dep OK"

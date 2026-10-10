@@ -1,0 +1,35 @@
+// =============================================================================
+// Release.xcconfig – Overrides para App Store / Produção
+// =============================================================================
+
+#include "Common.xcconfig"
+#include "../Secrets/Secrets.xcconfig"
+
+// MARK: – Bundle Identifier & Name
+PRODUCT_BUNDLE_IDENTIFIER = com.example.app
+PRODUCT_NAME = App
+
+// MARK: – Optimization (Release)
+GCC_TREAT_WARNINGS_AS_ERRORS = YES
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+SWIFT_OPTIMIZATION_LEVEL = -O
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ENABLE_NS_ASSERTIONS = NO
+VALIDATE_PRODUCT = YES
+
+// MARK: – Feature flags (Release overrides)
+ENABLE_LOGGING = NO
+ENABLE_ANALYTICS = YES
+MOCK_API = NO
+
+// MARK: – Networking (Release)
+API_BASE_URL = https://api.example.com
+API_TIMEOUT_SECONDS = 30
+
+// MARK: – Logging (Release)
+LOG_LEVEL = error
+LOG_PRIVACY = public
+
+// MARK: – Code Signing (Release – Manual recomendado em CI)
+CODE_SIGN_STYLE = Manual
+PROVISIONING_PROFILE_SPECIFIER = $(PROVISIONING_PROFILE_RELEASE)

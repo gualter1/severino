@@ -1,0 +1,22 @@
+// =============================================================================
+// Production.xcconfig – Ambiente PROD (separado de Release p/ permitir staging)
+// Uso opcional: scheme Release pode incluir este arquivo para vars de ambiente.
+// =============================================================================
+
+#include "Release.xcconfig"
+
+// MARK: – Bundle Identifier & Name
+PRODUCT_BUNDLE_IDENTIFIER = com.example.app
+PRODUCT_NAME = App
+APP_DISPLAY_NAME = App
+APP_ICON_NAME = AppIcon
+
+// MARK: – Environment
+APP_ENVIRONMENT = production
+API_BASE_URL = https://api.example.com
+
+// MARK: – Feature flags
+ENABLE_LOGGING = NO
+ENABLE_ANALYTICS = YES
+MOCK_API = NO
+ENABLE_EXPERIMENTAL_FEATURES = NO

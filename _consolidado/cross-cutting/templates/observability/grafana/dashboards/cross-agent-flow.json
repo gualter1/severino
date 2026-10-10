@@ -1,0 +1,98 @@
+{
+  "dashboard": {
+    "title": "Cross-Agent Flow",
+    "uid": "cross-agent-flow",
+    "tags": ["agent", "flow", "handoff", "orchestration", "adr-030"],
+    "timezone": "utc",
+    "refresh": "30s",
+    "time": { "from": "now-1h", "to": "now" },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Handoff Rate (success/failure)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_handoff_total{status=\\\"success\\\"}[1m])) by (from, to)", "legendFormat": "{{from}} → {{to}} (success)", "refId": "A" },
+          { "expr": "sum(rate(agent_handoff_total{status=\\\"failure\\\"}[1m])) by (from, to)", "legendFormat": "{{from}} → {{to}} (failure)", "refId": "B" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } },
+        "alert": { "name": "Handoff Failure Rate > 2%", "condition": "B", "frequency": "1m", "for": "5m", "annotations": { "summary": "Handoff failure rate high", "description": "Failure rate: ${{ $value }} req/s" } }
+      },
+      {
+        "id": 2,
+        "title": "Handoff Latency (P50/P95/P99)",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum(rate(agent_handoff_duration_ms_bucket[5m])) by (from, to, le))", "legendFormat": "P50", "refId": "A" },
+          { "expr": "histogram_quantile(0.95, sum(rate(agent_handoff_duration_ms_bucket[5m])) by (from, to, le))", "legendFormat": "P95", "refId": "B" },
+          { "expr": "histogram_quantile(0.99, sum(rate(agent_handoff_duration_ms_bucket[5m])) by (from, to, le))", "legendFormat": "P99", "refId": "C" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms" } }
+      },
+      {
+        "id": 3,
+        "title": "Active Orchestrations",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "count by (orchestrator) (agent_orchestration_active)", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "color": { "mode": "value" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 50 } ] } } }
+      },
+      {
+        "id": 4,
+        "title": "Orchestration Duration",
+        "type": "timeseries",
+        "gridPos": { "x": 6, "y": 4, "w": 18, "h": 4 },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum(rate(agent_orchestration_duration_ms_bucket[5m])) by (orchestrator, le))", "legendFormat": "{{orchestrator}} - P50", "refId": "A" },
+          { "expr": "histogram_quantile(0.95, sum(rate(agent_orchestration_duration_ms_bucket[5m])) by (orchestrator, le))", "legendFormat": "{{orchestrator}} - P95", "refId": "B" },
+          { "expr": "histogram_quantile(0.99, sum(rate(agent_orchestration_duration_ms_bucket[5m])) by (orchestrator, le))", "legendFormat": "{{orchestrator}} - P99", "refId": "C" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ms" } }
+      },
+      {
+        "id": 5,
+        "title": "Agent Dependency Graph",
+        "type": "node-graph",
+        "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+        "targets": [
+          { "expr": "sum(rate(agent_handoff_total[5m])) by (from, to)", "format": "node_graph", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" } } }
+      },
+      {
+        "id": 6,
+        "title": "Handoff Reason Distribution",
+        "type": "piechart",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "sum(increase(agent_handoff_total[1h])) by (reason)", "legendFormat": "{{reason}}", "refId": "A" }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Orchestrator Load Distribution",
+        "type": "barchart",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "sum(rate(agent_tool_call_total[5m])) by (orchestrator)", "legendFormat": "{{orchestrator}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } }
+      },
+      {
+        "id": 8,
+        "title": "Circuit Breaker State",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 22, "w": 24, "h": 4 },
+        "targets": [
+          { "expr": "agent_circuit_breaker_state", "format": "table", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "align": "center" }, "thresholds": { "steps": [ { "color": "green", "value": "closed" }, { "color": "yellow", "value": "half-open" }, { "color": "red", "value": "open" } ] } } }
+      }
+    ]
+  },
+  "overwrite": true
+}

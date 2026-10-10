@@ -1,0 +1,87 @@
+{
+  "dashboard": {
+    "title": "Token Economics",
+    "uid": "token-economics",
+    "tags": ["agent", "tokens", "cost", "economics", "adr-030"],
+    "timezone": "utc",
+    "refresh": "1m",
+    "time": { "from": "now-24h", "to": "now" },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Cost (USD) - 24h",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+        "targets": [
+          { "expr": "sum(increase(agent_cost_usd_total[24h]))", "refId": "A", "legendFormat": "Total" }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "currencyUSD", "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 100 } ] } }
+        },
+        "alert": { "name": "Daily Cost > $100", "condition": "A", "frequency": "5m", "for": "10m", "annotations": { "summary": "Daily agent cost exceeded $100", "description": "Total cost: ${{ $value }}" } }
+      },
+      {
+        "id": 2,
+        "title": "Cost per Hour (USD)",
+        "type": "timeseries",
+        "gridPos": { "x": 6, "y": 0, "w": 18, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_cost_usd_total[1h])) by (agent)", "legendFormat": "{{agent}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "currencyUSDps" } }
+      },
+      {
+        "id": 3,
+        "title": "Tokens Consumed (Input/Output/Total)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_tokens_total{type=\\\"input\\\"}[5m])) by (agent)", "legendFormat": "{{agent}} - input", "refId": "A" },
+          { "expr": "sum(rate(agent_tokens_total{type=\\\"output\\\"}[5m])) by (agent)", "legendFormat": "{{agent}} - output", "refId": "B" },
+          { "expr": "sum(rate(agent_tokens_total{type=\\\"total\\\"}[5m])) by (agent)", "legendFormat": "{{agent}} - total", "refId": "C" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "reqps" } }
+      },
+      {
+        "id": 4,
+        "title": "Avg Cost per Request",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_cost_usd_total[5m])) by (agent) / sum(rate(agent_tool_call_total[5m])) by (agent)", "legendFormat": "{{agent}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+      },
+      {
+        "id": 5,
+        "title": "Token Usage by Model",
+        "type": "piechart",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "sum(rate(agent_tokens_total[1h])) by (model)", "legendFormat": "{{model}}", "refId": "A" }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Cost by Agent (24h)",
+        "type": "barchart",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 6 },
+        "targets": [
+          { "expr": "sum(increase(agent_cost_usd_total[24h])) by (agent)", "legendFormat": "{{agent}}", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+      },
+      {
+        "id": 7,
+        "title": "Input vs Output Token Ratio",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 14, "w": 24, "h": 4 },
+        "targets": [
+          { "expr": "sum(rate(agent_tokens_total{type=\\\"output\\\"}[5m])) by (agent) / sum(rate(agent_tokens_total{type=\\\"input\\\"}[5m])) by (agent)", "legendFormat": "{{agent}} - output/input ratio", "refId": "A" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "ratio", "min": 0, "max": 5 } }
+      }
+    ]
+  },
+  "overwrite": true
+}

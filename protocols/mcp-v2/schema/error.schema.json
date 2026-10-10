@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentError",
+  "type": "object",
+  "required": ["code", "message", "retryable"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "enum": ["TIMEOUT", "NOT_FOUND", "SANDBOX_DENIED", "RATE_LIMITED", "INTERNAL_ERROR"]
+    },
+    "message": { "type": "string" },
+    "retryable": { "type": "boolean" },
+    "retryAfter": { "type": "number" },
+    "details": { "type": "object" }
+  }
+}

@@ -1,0 +1,22 @@
+// =============================================================================
+// Development.xcconfig – Ambiente DEV (equipe interna, feature branches)
+// Uso opcional: duplique o scheme Debug e aponte para este arquivo.
+// =============================================================================
+
+#include "Debug.xcconfig"
+
+// MARK: – Bundle Identifier & Name
+PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev
+PRODUCT_NAME = App (Dev)
+APP_DISPLAY_NAME = App Dev
+APP_ICON_NAME = AppIcon-Dev
+
+// MARK: – Environment
+APP_ENVIRONMENT = development
+API_BASE_URL = https://dev-api.example.com
+
+// MARK: – Feature flags
+ENABLE_LOGGING = YES
+ENABLE_ANALYTICS = NO
+MOCK_API = YES
+ENABLE_EXPERIMENTAL_FEATURES = YES

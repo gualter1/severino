@@ -1,0 +1,23 @@
+// =============================================================================
+// Networking.xcconfig – URLSession, timeouts, cert pinning (ADR-009)
+// Incluído por Config/Common.xcconfig. Override por config específica.
+// =============================================================================
+
+// MARK: – Base URL & Timeouts
+API_BASE_URL = https://api.example.com
+API_TIMEOUT_SECONDS = 30
+API_RESOURCE_TIMEOUT_SECONDS = 60
+URLSESSION_WAITS_FOR_CONNECTIVITY = YES
+
+// MARK: – TLS / Certificate Pinning (SPKI – injetado via Secrets)
+CERT_PIN_PRIMARY = $(CERT_PIN_PRIMARY)
+CERT_PIN_BACKUP = $(CERT_PIN_BACKUP)
+NSAppTransportSecurity_EnforcesPinning = YES
+
+// MARK: – Retry
+API_MAX_RETRIES = 3
+API_RETRY_BACKOFF_MS = 500
+
+// MARK: – Cache
+URLCACHE_MEMORY_MB = 20
+URLCACHE_DISK_MB = 100

@@ -1,0 +1,61 @@
+// =============================================================================
+// Common.xcconfig – Configurações globais compartilhadas por TODAS as configurações
+// =============================================================================
+
+// MARK: – Swift & Deployment
+SWIFT_VERSION = 6.0
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+MACOSX_DEPLOYMENT_TARGET = 14.0
+TVOS_DEPLOYMENT_TARGET = 17.0
+WATCHOS_DEPLOYMENT_TARGET = 10.0
+
+// MARK: – Build System
+ENABLE_BITCODE = NO
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = $(DEVELOPMENT_TEAM_ID)          // definido em Secrets.xcconfig
+PROVISIONING_PROFILE_SPECIFIER = $(PROVISIONING_PROFILE)
+
+// MARK: – Compiler Flags
+OTHER_SWIFT_FLAGS = -Xfrontend -warn-long-expression-type-checking=100 \
+                    -Xfrontend -warn-long-function-bodies=100 \
+                    -Xfrontend -warn-concurrency \
+                    -D$(CONFIGURATION)             // expõe DEBUG / RELEASE / TEST no código
+
+// MARK: – Warnings as Errors (exceto em Debug)
+GCC_TREAT_WARNINGS_AS_ERRORS = NO
+SWIFT_TREAT_WARNINGS_AS_ERRORS = $(GCC_TREAT_WARNINGS_AS_ERRORS)
+
+// MARK: – Architecture
+ARCHS_STANDARD = $(ARCHS_STANDARD_INCLUDING_64_BIT)
+VALID_ARCHS = arm64 arm64e x86_64
+
+// MARK: – Linker
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @loader_path/Frameworks
+
+// MARK: – Privacy & Hardening (ADR‑009)
+ENABLE_HARDENED_RUNTIME = YES
+GCC_ENABLE_OBJC_GC = unsupported
+CLANG_ANALYZER_NONNULL = YES
+CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES
+
+// MARK: – Feature‑flag defaults (podem ser sobrescritos)
+ENABLE_LOGGING = YES
+ENABLE_ANALYTICS = NO
+MOCK_API = NO
+
+// MARK: – Networking defaults
+API_BASE_URL = https://api.example.com
+API_TIMEOUT_SECONDS = 30
+
+// MARK: – Logging defaults
+LOG_LEVEL = info
+LOG_PRIVACY = public
+
+// MARK: – Analytics defaults
+ANALYTICS_KEY = $(ANALYTICS_API_KEY)              // vindo de Secrets
+
+// MARK: – Module includes (opcional, permite granularidade)
+#include "../Modules/Networking.xcconfig"
+#include "../Modules/Logging.xcconfig"
+#include "../Modules/Analytics.xcconfig"
+#include "../Modules/FeatureFlags.xcconfig"

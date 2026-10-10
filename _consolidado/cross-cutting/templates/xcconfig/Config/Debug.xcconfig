@@ -1,0 +1,32 @@
+// =============================================================================
+// Debug.xcconfig – Overrides para ambiente de Desenvolvimento / Debug
+// =============================================================================
+
+#include "Common.xcconfig"
+#include "../Secrets/Secrets.xcconfig"
+
+// MARK: – Bundle Identifier & Name
+PRODUCT_BUNDLE_IDENTIFIER = com.example.app.debug
+PRODUCT_NAME = App (Debug)
+
+// MARK: – Compiler Flags (Debug)
+GCC_TREAT_WARNINGS_AS_ERRORS = NO
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+
+// MARK: – Feature flags (Debug overrides)
+ENABLE_LOGGING = YES
+ENABLE_ANALYTICS = NO
+MOCK_API = YES
+
+// MARK: – Networking (Debug overrides)
+API_BASE_URL = https://staging-api.example.com
+API_TIMEOUT_SECONDS = 60
+
+// MARK: – Logging (Debug overrides)
+LOG_LEVEL = debug
+LOG_PRIVACY = private
+
+// MARK: – Code Signing (Debug)
+CODE_SIGN_STYLE = Automatic
+#include? "Secrets.local.xcconfig"

@@ -1,0 +1,64 @@
+# skill-review.yaml — Configuração de validação (inspirado skillpper)
+version: 1
+rules:
+  # Metadata
+  - id: META001
+    name: "Frontmatter válido"
+    check: "frontmatter.exists && frontmatter.name && frontmatter.description"
+    severity: "error"
+  - id: META002
+    name: "Name == folder name"
+    check: "frontmatter.name == folderName"
+    severity: "error"
+  - id: META003
+    name: "SemVer version"
+    check: "frontmatter.version matches ^\\d+\\.\\d+\\.\\d+$"
+    severity: "warn"
+
+  # Structure
+  - id: STR001
+    name: "SKILL.md existe"
+    check: "fileExists('SKILL.md')"
+    severity: "error"
+  - id: STR002
+    name: "References folder existe"
+    check: "dirExists('references')"
+    severity: "info"
+
+  # Content Quality
+  - id: CONT001
+    name: "Tem seção 'Quando Usar'"
+    check: "skillMd.contains('## Quando Usar')"
+    severity: "warn"
+  - id: CONT002
+    name: "Tem analogia Guanabara"
+    check: "skillMd.contains('Analogy') || skillMd.contains('Analogia')"
+    severity: "info"
+  - id: CONT003
+    name: "Tem exemplos ❌/✅"
+    check: "skillMd.contains('❌') && skillMd.contains('✅')"
+    severity: "warn"
+  - id: CONT004
+    name: "Tem validação observável por passo"
+    check: "skillMd.matches(/Validação:.*observável/)"
+    severity: "warn"
+
+  # Security (skillpper SEC002/006/007)
+  - id: SEC001
+    name: "Sem credenciais hardcoded"
+    check: "!skillMd.matches(/api[_-]?key|secret|password|token.*=.*[\"'][^\"']+[\"']/i)"
+    severity: "error"
+  - id: SEC002
+    name: "Sem execução perigosa sem validação"
+    check: "!skillMd.matches(/eval\\(|Function\\(|exec\\(|bash -c/i)"
+    severity: "warn"
+  - id: SEC003
+    name: "Sem persistência não declarada"
+    check: "!skillMd.matches(/writeFile|fs\\.write|localStorage\\.set/i) || skillMd.contains('declared persistence')"
+    severity: "warn"
+
+  # Duplication (skillpper DUP001/DUP002)
+  - id: DUP001
+    name: "Skill name único no registry"
+    check: "external.checkRegistryUniqueness(frontmatter.name)"
+    severity: "error"

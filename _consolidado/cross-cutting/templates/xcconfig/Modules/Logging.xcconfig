@@ -1,0 +1,20 @@
+// =============================================================================
+// Logging.xcconfig – OSLog, levels, privacy (ADR-009)
+// =============================================================================
+
+// MARK: – Levels: trace | debug | info | notice | error | fault
+LOG_LEVEL = info
+
+// MARK: – Privacy: public | private | auto
+// Debug → private (dados sensíveis redacted em prod). Release → public mínimo.
+LOG_PRIVACY = public
+
+// MARK: – Subsystems
+LOG_SUBSYSTEM_APP = com.example.app
+LOG_SUBSYSTEM_NETWORK = com.example.app.network
+LOG_SUBSYSTEM_AUTH = com.example.app.auth
+
+// MARK: – Toggles por config
+ENABLE_LOGGING = YES
+ENABLE_OSLOG_SIGNPOSTS = NO
+ENABLE_FILE_LOGGING = NO

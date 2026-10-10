@@ -1,0 +1,256 @@
+{
+  "domain": "backend",
+  "taskSignature": "endpoint-post-apiv1webhooksstripe-validação-hmac",
+  "version": 10,
+  "patterns": [
+    {
+      "id": "c98bbe96-e543-43b2-975c-4486bf56fb6b",
+      "pattern": "Usar rawBody apenas na rota do webhook",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.8,
+      "sourceReports": [
+        "task-test-099",
+        "task-test-099",
+        "task-test-099"
+      ],
+      "createdAt": "2026-10-10T15:11:59.663Z",
+      "updatedAt": "2026-10-10T15:13:32.238Z",
+      "timesApplied": 3,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "8ecf55b1-03b9-46ac-afe7-d936f3a7fe79",
+      "pattern": "Sequência funcionou: skill:fastify-route-template:Criar rota Fastify → edit:Adicionar rawBody middleware → npm-scripts:Rodar testes vitest",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.7000000000000001,
+      "sourceReports": [
+        "task-test-099",
+        "task-test-099",
+        "task-test-099"
+      ],
+      "createdAt": "2026-10-10T15:11:59.664Z",
+      "updatedAt": "2026-10-10T15:13:32.238Z",
+      "timesApplied": 3,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "6402cb93-cf28-470d-a674-88ce5665fa9b",
+      "pattern": "Usar rawBody global no Fastify",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.75,
+      "sourceReports": [
+        "task-001",
+        "task-001"
+      ],
+      "createdAt": "2026-10-10T15:14:41.734Z",
+      "updatedAt": "2026-10-10T15:14:41.737Z",
+      "timesApplied": 2,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "07f62914-f8ef-4ca1-a9ea-955d17aa3877",
+      "pattern": "Converter body para Buffer manualmente",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.75,
+      "sourceReports": [
+        "task-001",
+        "task-001"
+      ],
+      "createdAt": "2026-10-10T15:14:41.734Z",
+      "updatedAt": "2026-10-10T15:14:41.737Z",
+      "timesApplied": 2,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "5bd3177b-ea25-4a44-af82-d08df76c12d0",
+      "pattern": "Sequência funcionou: web-search:Pesquisar como fazer webhook Stripe → edit:Criar rota Fastify do zero → stripe-cli:Testes locais stripe-cli",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.65,
+      "sourceReports": [
+        "task-001",
+        "task-001"
+      ],
+      "createdAt": "2026-10-10T15:14:41.734Z",
+      "updatedAt": "2026-10-10T15:14:41.737Z",
+      "timesApplied": 2,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "d8e65b89-18c5-4b43-addd-3468b172e7dd",
+      "pattern": "Seguir skill oficial para estrutura",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.75,
+      "sourceReports": [
+        "task-003",
+        "task-003"
+      ],
+      "createdAt": "2026-10-10T15:14:41.741Z",
+      "updatedAt": "2026-10-10T15:14:41.742Z",
+      "timesApplied": 2,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "20f3af7e-fe82-4c3a-b33f-7b2a0ab50d8b",
+      "pattern": "Sequência funcionou: skill:fastify-webhook-stripe:Usar skill fastify-webhook-stripe → edit:Configurar rawBody na rota → stripe-cli:Rodar testes stripe-cli",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.65,
+      "sourceReports": [
+        "task-003",
+        "task-003"
+      ],
+      "createdAt": "2026-10-10T15:14:41.741Z",
+      "updatedAt": "2026-10-10T15:14:41.742Z",
+      "timesApplied": 2,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    },
+    {
+      "id": "4c979dfc-7701-464f-9604-df36bd312191",
+      "pattern": "Sequência funcionou: skill:fastify-webhook-stripe:Aplicar skill official + testes → npm-scripts:Rodar testes",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "confidence": 0.65,
+      "sourceReports": [
+        "task-010",
+        "task-010"
+      ],
+      "createdAt": "2026-10-10T15:14:41.743Z",
+      "updatedAt": "2026-10-10T15:14:41.743Z",
+      "timesApplied": 2,
+      "timesConfirmed": 0,
+      "timesContradicted": 0
+    }
+  ],
+  "traps": [
+    {
+      "id": "fdabf65d-2dcb-45e1-b77e-e4cbfc45e336",
+      "trap": "stripe-node v14 exige Buffer no constructEvent",
+      "symptom": "Converter req.body para Buffer",
+      "rootCause": "Configurar rawBody: true no Fastify",
+      "prevention": "Configurar rawBody: true no Fastify",
+      "domain": "backend",
+      "severity": "high",
+      "sourceReports": [
+        "task-test-099",
+        "task-test-099",
+        "task-test-099"
+      ],
+      "createdAt": "2026-10-10T15:11:59.664Z",
+      "updatedAt": "2026-10-10T15:13:32.238Z",
+      "timesEncountered": 3,
+      "timesPrevented": 0
+    },
+    {
+      "id": "7906fe85-fbb9-42b4-9585-cc868b2ab872",
+      "trap": "stripe-node v14 exige rawBody como Buffer",
+      "symptom": "Buffer.from(req.body)",
+      "rootCause": "Configurar rawBody: true no Fastify",
+      "prevention": "Configurar rawBody: true no Fastify",
+      "domain": "backend",
+      "severity": "high",
+      "sourceReports": [
+        "task-001",
+        "task-001"
+      ],
+      "createdAt": "2026-10-10T15:14:41.735Z",
+      "updatedAt": "2026-10-10T15:14:41.737Z",
+      "timesEncountered": 2,
+      "timesPrevented": 0
+    },
+    {
+      "id": "74878664-90f2-43da-ae11-ff76fed629c7",
+      "trap": "Fastify parser JSON consome stream antes do rawBody",
+      "symptom": "Desabilitar parser global",
+      "rootCause": "rawBody antes do parser",
+      "prevention": "rawBody antes do parser",
+      "domain": "backend",
+      "severity": "medium",
+      "sourceReports": [
+        "task-001",
+        "task-001"
+      ],
+      "createdAt": "2026-10-10T15:14:41.735Z",
+      "updatedAt": "2026-10-10T15:14:41.737Z",
+      "timesEncountered": 2,
+      "timesPrevented": 0
+    }
+  ],
+  "shortcuts": [
+    {
+      "id": "22784b6c-c1d1-47ce-b1c8-bd429a7a9182",
+      "name": "skill:fastify-route-template",
+      "type": "skill",
+      "description": "Boilerplate",
+      "trigger": "criar endpoint post /api/v1/webhooks/stripe com",
+      "domain": "backend",
+      "estimatedTimeSaved": "~2-5min",
+      "version": "2.1.0",
+      "sourceReports": [
+        "task-test-099",
+        "task-test-099",
+        "task-test-099",
+        "task-001",
+        "task-001"
+      ],
+      "status": "validated",
+      "createdAt": "2026-10-10T15:11:59.664Z",
+      "updatedAt": "2026-10-10T15:14:41.737Z"
+    },
+    {
+      "id": "1ad223a2-b58d-4ec3-a39a-0dfe045b4239",
+      "name": "skill:fastify-webhook-stripe",
+      "type": "skill",
+      "description": "Boilerplate completo webhook Stripe",
+      "trigger": "criar webhook stripe",
+      "domain": "backend",
+      "estimatedTimeSaved": "~5min",
+      "sourceReports": [
+        "task-test-099",
+        "task-test-099",
+        "task-test-099",
+        "task-001",
+        "task-001",
+        "task-003",
+        "task-003",
+        "task-010",
+        "task-010"
+      ],
+      "status": "validated",
+      "createdAt": "2026-10-10T15:11:59.664Z",
+      "updatedAt": "2026-10-10T15:14:41.744Z"
+    }
+  ],
+  "metrics": {
+    "avgTimeWithoutContextMs": 120000,
+    "avgTimeWithContextMs": 335000,
+    "successRateWithoutContext": 1,
+    "successRateWithContext": 0.75,
+    "reportsAbsorbed": 8
+  },
+  "sourceReportIds": [
+    "task-test-099",
+    "task-test-099",
+    "task-test-099",
+    "task-001",
+    "task-001",
+    "task-003",
+    "task-003",
+    "task-010",
+    "task-010"
+  ],
+  "lastUpdated": "2026-10-10T15:14:41.744Z",
+  "updatedBy": "severino-learning-loop"
+}

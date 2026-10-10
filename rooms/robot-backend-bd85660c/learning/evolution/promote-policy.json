@@ -1,0 +1,13 @@
+{
+  "minReportsForCandidate": 1,
+  "minReportsForValidated": 2,
+  "minReportsForOfficial": 3,
+  "requireHumanApproval": true,
+  "autoPromoteAfterDays": 30,
+  "testRequirements": {
+    "lint": true,
+    "typecheck": true,
+    "unitTests": true,
+    "minCoverage": 80
+  }
+}

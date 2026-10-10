@@ -1,0 +1,5 @@
+# Secrets locais – NUNCA commitar (ADR-009)
+Secrets/Secrets.xcconfig
+Secrets/.env
+Secrets/*.local.xcconfig
+*.mobileprovision

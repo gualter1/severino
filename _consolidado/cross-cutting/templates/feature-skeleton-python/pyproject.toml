@@ -1,0 +1,126 @@
+[project]
+name = "feature-skeleton-python"
+version = "2.0.0"
+description = "Canonical feature skeleton V2 (ADR-027) — Python variant"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Severino Team", email = "team@severino.dev"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    # HTTP Framework
+    "fastapi>=0.109",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "pydantic-extra-types>=2.4",
+
+    # Validation
+    "python-json-logger>=2.0",
+    "structlog>=24.1",
+
+    # Database
+    "sqlalchemy>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+
+    # Config
+    "python-dotenv>=1.0",
+
+    # Observability (ADR-030)
+    "opentelemetry-api>=1.22",
+    "opentelemetry-sdk>=1.22",
+    "opentelemetry-exporter-prometheus>=1.14",
+    "opentelemetry-exporter-otlp>=1.14",
+    "opentelemetry-instrumentation-fastapi>=0.42",
+    "opentelemetry-instrumentation-sqlalchemy>=0.42",
+    "opentelemetry-instrumentation-asyncpg>=0.42",
+
+    # Async
+    "httpx>=0.26",
+    "tenacity>=8.2",
+
+    # CLI
+    "typer>=0.9",
+
+    # Utils
+    "python-ulid>=2.3",
+    "orjson>=3.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "pytest-mock>=3.12",
+    "httpx>=0.26",
+    "testcontainers>=4.6",
+
+    # Mutation Testing
+    "mutmut>=2.4",
+
+    # Linting/Type Checking
+    "ruff>=0.3",
+    "mypy>=1.8",
+    "types-ujson>=5.8",
+
+    # Pre-commit
+    "pre-commit>=3.6",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80 --cov-branch --cov-fail-under-branch=70"
+
+[tool.mutmut]
+paths_to_mutate = "src/"
+backup = false
+runner = "pytest -x"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "PT",  # flake8-pytest-style
+    "T20", # flake8-print
+]
+ignore = ["E501", "B008"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

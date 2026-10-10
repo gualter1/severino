@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏭 Severino Master Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #30363d; }
+    h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; }
+    .status-badge { background: #238636; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
+    .card h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 1.1rem; color: #58a6ff; }
+    .card h2::before { content: attr(data-icon); font-size: 1.2rem; }
+    .team-list, .robot-list { display: flex; flex-direction: column; gap: 12px; }
+    .team-card, .robot-card { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .team-header, .robot-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .team-name, .robot-name { font-weight: 600; font-size: 1rem; }
+    .team-domain, .robot-role { background: #21262d; color: #8b949e; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .status-active { background: #238636; }
+    .status-idle { background: #8b949e; }
+    .status-busy { background: #d29922; }
+    .status-error { background: #da3633; }
+    .metric-row { display: flex; justify-content: space-between; color: #8b949e; font-size: 0.85rem; }
+    .metric-label { color: #8b949e; }
+    .metric-value { color: #e6edf3; font-weight: 500; }
+    .btn { background: #238636; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
+    .btn:hover { background: #2ea043; }
+    .btn-secondary { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+    .btn-secondary:hover { background: #30363d; }
+    .btn-danger { background: #da3633; }
+    .btn-danger:hover { background: #f85149; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; }
+    input, select, textarea { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 10px 12px; border-radius: 6px; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #58a6ff; }
+    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { background: none; border: none; color: #8b949e; font-size: 1.5rem; cursor: pointer; }
+    .task-output { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-top: 16px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 400px; overflow-y: auto; color: #8b949e; }
+    .logs { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.75rem; max-height: 300px; overflow-y: auto; color: #8b949e; }
+    .log-entry { margin: 4px 0; }
+    .log-time { color: #8b949e; }
+    .log-info { color: #58a6ff; }
+    .log-success { color: #238636; }
+    .log-warn { color: #d29922; }
+    .log-error { color: #da3633; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🏭 <span>Severino Master</span></h1>
+      <span class="status-badge" id="connectionStatus">Conectando...</span>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <h2 data-icon="🏢">Equipes</h2>
+        <div class="team-list" id="teamsList">
+          <div class="team-card" style="text-align:center;color:#8b949e;padding:40px;">Carregando...</div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:16px;" onclick="openCreateTeamModal()">+ Nova Equipe</button>
+      </div>
+
+      <div class="card">
+        <h2 data-icon="🤖">Robôs</h2>
+        <div class="robot-list" id="robotsList">
+          <div class="robot-card" style="text-align:center;color:#8b949e;padding:40px;">Carregando...</div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2 data-icon="🚀">Executar Tarefa</h2>
+        <form id="taskForm">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;">
+            <div class="form-group">
+              <label>Domínio</label>
+              <select id="taskDomain" required>
+                <option value="backend">Backend</option>
+                <option value="frontend">Frontend</option>
+                <option value="qa">QA</option>
+                <option value="devops">DevOps</option>
+                <option value="security">Security</option>
+                <option value="sales">Sales</option>
+                <option value="product">Product</option>
+                <option value="research">Research</option>
+                <option value="data">Data</option>
+                <option value="tech-lead">Tech Lead</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Team ID (opcional)</label>
+              <input type="text" id="taskTeamId" placeholder="deixe vazio para ad-hoc">
+            </div>
+            <div class="form-group">
+              <label>Robot ID (opcional)</label>
+              <input type="text" id="taskRobotId" placeholder="auto-seleciona se vazio">
+            </div>
+            <button type="submit" class="btn">Executar</button>
+          </div>
+          <div class="form-group">
+            <label>Objetivo da Tarefa</label>
+            <textarea id="taskObjective" rows="3" placeholder="Descreva o que precisa ser feito..." required></textarea>
+          </div>
+        </form>
+        <div class="task-output hidden" id="taskOutput"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-icon="📚">Catálogo de Skills</h2>
+        <div class="logs" id="skillsList">Carregando...</div>
+      </div>
+
+      <div class="card">
+        <h2 data-icon="🧠">Contextos Curados</h2>
+        <div class="logs" id="contextsList">Carregando...</div>
+      </div>
+
+      <div class="card">
+        <h2 data-icon="🔐">Resource Broker (Porteiro)</h2>
+        <div class="logs" id="resourcesList">Carregando...</div>
+      </div>
+
+      <div class="card">
+        <h2 data-icon="📱">Communication Adapters</h2>
+        <div class="logs" id="adaptersList">Carregando...</div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <h2 data-icon="📋">Logs do Sistema</h2>
+        <div class="logs" id="systemLogs"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="createTeamModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>➕ Criar Nova Equipe</h3>
+        <button class="close-btn" onclick="closeModal('createTeamModal')">&times;</button>
+      </div>
+      <form id="createTeamForm">
+        <div class="form-group">
+          <label>Team ID</label>
+          <input type="text" id="newTeamId" required placeholder="ex: sales-team-001">
+        </div>
+        <div class="form-group">
+          <label>Nome da Equipe</label>
+          <input type="text" id="newTeamName" required placeholder="ex: Sales Outbound">
+        </div>
+        <div class="form-group">
+          <label>Domínio Principal</label>
+          <select id="newTeamDomain" required>
+            <option value="backend">Backend</option>
+            <option value="frontend">Frontend</option>
+            <option value="qa">QA</option>
+            <option value="devops">DevOps</option>
+            <option value="security">Security</option>
+            <option value="sales">Sales</option>
+            <option value="product">Product</option>
+            <option value="research">Research</option>
+            <option value="data">Data</option>
+            <option value="tech-lead">Tech Lead</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Papéis (um por linha)</label>
+          <textarea id="newTeamRoles" rows="4" required placeholder="backend
+frontend
+qa
+devops"></textarea>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createTeamModal')">Cancelar</button>
+          <button type="submit" class="btn">Criar Equipe</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    const API_BASE = window.location.origin;
+
+    const connectionStatus = document.getElementById('connectionStatus');
+    const teamsList = document.getElementById('teamsList');
+    const robotsList = document.getElementById('robotsList');
+    const taskForm = document.getElementById('taskForm');
+    const taskOutput = document.getElementById('taskOutput');
+    const skillsList = document.getElementById('skillsList');
+    const contextsList = document.getElementById('contextsList');
+    const resourcesList = document.getElementById('resourcesList');
+    const adaptersList = document.getElementById('adaptersList');
+    const systemLogs = document.getElementById('systemLogs');
+
+    async function init() {
+      await loadAll();
+      connectWebSocket();
+      setInterval(loadAll, 30000);
+    }
+
+    function connectWebSocket() {
+      const wsUrl = `ws://${window.location.host}/ws`;
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        connectionStatus.textContent = 'Conectado';
+        connectionStatus.style.background = '#238636';
+        log('info', 'WebSocket conectado');
+      };
+      ws.onclose = () => {
+        connectionStatus.textContent = 'Desconectado';
+        connectionStatus.style.background = '#da3633';
+        log('warn', 'WebSocket desconectado, reconectando em 5s...');
+        setTimeout(connectWebSocket, 5000);
+      };
+      ws.onerror = (e) => {
+        log('error', 'WebSocket error: ' + e.message);
+      };
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'task-result') {
+          showTaskResult(data.response);
+        }
+      };
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function loadAll() {
+      await Promise.all([loadTeams(), loadRobots(), loadSkills(), loadContexts(), loadResources(), loadAdapters()]);
+    }
+
+    async function loadTeams() {
+      try {
+        const { teams } = await api('/teams');
+        teamsList.innerHTML = teams.length === 0
+          ? '<div class="team-card" style="text-align:center;color:#8b949e;padding:40px;">Nenhuma equipe criada</div>'
+          : teams.map(team => `
+            <div class="team-card">
+              <div class="team-header">
+                <div>
+                  <div class="team-name">${team.name}</div>
+                  <span class="team-domain">${team.domain}</span>
+                </div>
+                <span class="status-dot status-${team.status}"></span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Robôs</span>
+                <span class="metric-value">${team.robotIds.length}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Tasks Completas</span>
+                <span class="metric-value">${team.totalTasksCompleted}</span>
+              </div>
+            </div>
+          `).join('');
+      } catch (e) {
+        teamsList.innerHTML = `<div class="team-card" style="color:#da3633;">Erro: ${e.message}</div>`;
+      }
+    }
+
+    async function loadRobots() {
+      try {
+        const { robots } = await api('/robots').catch(() => ({ robots: [] }));
+        robotsList.innerHTML = robots.length === 0
+          ? '<div class="robot-card" style="text-align:center;color:#8b949e;padding:40px;">Nenhum robô ativo</div>'
+          : robots.map(r => `
+            <div class="robot-card">
+              <div class="robot-header">
+                <div>
+                  <div class="robot-name">${r.robotId}</div>
+                  <span class="robot-role">${r.role}</span>
+                </div>
+                <span class="status-dot status-${r.status}"></span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Team</span>
+                <span class="metric-value">${r.teamId}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Capabilities</span>
+                <span class="metric-value">${r.capabilities?.length || 0}</span>
+              </div>
+            </div>
+          `).join('');
+      } catch (e) {
+        robotsList.innerHTML = `<div class="robot-card" style="color:#da3633;">Erro: ${e.message}</div>`;
+      }
+    }
+
+    async function loadSkills() {
+      try {
+        const { skills } = await api('/skills');
+        skillsList.innerHTML = skills.length === 0
+          ? '<div style="text-align:center;color:#8b949e;padding:20px;">Nenhuma skill registrada</div>'
+          : skills.map(s => `
+            <div class="log-entry">
+              <span class="log-time">[${s.type}]</span>
+              <span class="log-info"> ${s.name}</span>
+              <span class="log-time"> — ${s.domain}</span>
+              <span class="status-dot status-${s.status === 'available' ? 'active' : 'busy'}" style="float:right;"></span>
+            </div>
+          `).join('');
+      } catch (e) {
+        skillsList.innerHTML = `<div style="color:#da3633;">Erro: ${e.message}</div>`;
+      }
+    }
+
+    async function loadContexts() {
+      try {
+        const { contexts } = await api('/learning/contexts');
+        contextsList.innerHTML = contexts.length === 0
+          ? '<div style="text-align:center;color:#8b949e;padding:20px;">Nenhum contexto curado ainda</div>'
+          : contexts.map(c => `
+            <div class="log-entry">
+              <span class="log-info">${c.domain}::${c.taskSignature}</span>
+              <span class="log-time"> v${c.version} | ${c.metrics.reportsAbsorbed} reports</span>
+              <span class="log-success"> ⚡ ${c.metrics.avgTimeWithContextMs && c.metrics.avgTimeWithoutContextMs ? (c.metrics.avgTimeWithoutContextMs/c.metrics.avgTimeWithContextMs).toFixed(1)+'x' : ''}</span>
+            </div>
+          `).join('');
+      } catch (e) {
+        contextsList.innerHTML = `<div style="color:#da3633;">Erro: ${e.message}</div>`;
+      }
+    }
+
+    async function loadResources() {
+      try {
+        const { resources } = await api('/resources');
+        resourcesList.innerHTML = resources.length === 0
+          ? '<div style="text-align:center;color:#8b949e;padding:20px;">Nenhum recurso cadastrado</div>'
+          : resources.map(r => `
+            <div class="log-entry">
+              <span class="log-info">[${r.type}] ${r.name}</span>
+              <span class="log-time"> — ${r.status}</span>
+              ${r.checkedOutBy ? '<span style="color:#d29922;"> (Checked out: ' + r.checkedOutBy.robotId + ')</span>' : ''}
+            </div>
+          `).join('');
+      } catch (e) {
+        resourcesList.innerHTML = `<div style="color:#da3633;">Erro: ${e.message}</div>`;
+      }
+    }
+
+    async function loadAdapters() {
+      try {
+        const { adapters } = await api('/adapters');
+        adaptersList.innerHTML = adapters.length === 0
+          ? '<div style="text-align:center;color:#8b949e;padding:20px;">Nenhum adapter ativo</div>'
+          : adapters.map(a => `
+            <div class="log-entry">
+              <span class="log-info">${a.name}</span>
+              <span class="log-time"> — Status: **${a.status}**</span>
+              ${a.error ? '<span style="color:#da3633;"> (' + a.error + ')</span>' : ''}
+            </div>
+          `).join('');
+      } catch (e) {
+        adaptersList.innerHTML = `<div style="color:#da3633;">Erro: ${e.message}</div>`;
+      }
+    }
+
+    taskForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const domain = document.getElementById('taskDomain').value;
+      const teamId = document.getElementById('taskTeamId').value || undefined;
+      const robotId = document.getElementById('taskRobotId').value || undefined;
+      const objective = document.getElementById('taskObjective').value;
+
+      taskOutput.classList.remove('hidden');
+      taskOutput.textContent = 'Executando tarefa...\n';
+
+      try {
+        const body = { domain, objective };
+        if (teamId) body.teamId = teamId;
+        if (robotId) body.robotId = robotId;
+
+        const response = await api('/tasks', { method: 'POST', body: JSON.stringify(body) });
+        showTaskResult(response);
+      } catch (err) {
+        taskOutput.textContent = `Erro: ${err.message}`;
+        log('error', 'Task failed: ' + err.message);
+      }
+    });
+
+    function showTaskResult(response) {
+      const lines = [
+        `Tarefa ${response.status.toUpperCase()}`,
+        ``,
+        `Task ID: ${response.taskId}`,
+        `Robot: ${response.robotId}`,
+        `Team: ${response.teamId}`,
+        `Duração: ${(response.metrics.durationMs/1000).toFixed(1)}s`,
+        `Contexto: v${response.metrics.contextVersion}`,
+        ``,
+        `${response.reportSummary}`,
+        ``,
+        `Resultado:`,
+        JSON.stringify(response.result, null, 2),
+      ];
+      taskOutput.textContent = lines.join('\n');
+      log(response.status === 'failed' ? 'error' : 'success', `Task ${response.taskId} ${response.status}`);
+      loadAll();
+    }
+
+    function openCreateTeamModal() {
+      document.getElementById('createTeamModal').classList.add('open');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+    document.getElementById('createTeamForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const teamId = document.getElementById('newTeamId').value;
+      const name = document.getElementById('newTeamName').value;
+      const domain = document.getElementById('newTeamDomain').value;
+      const roles = document.getElementById('newTeamRoles').value.split('\n').map(r => r.trim()).filter(Boolean);
+
+      try {
+        await api('/teams', { method: 'POST', body: JSON.stringify({ teamId, name, domain, roles }) });
+        closeModal('createTeamModal');
+        loadTeams();
+        log('success', 'Equipe criada: ' + name);
+      } catch (err) {
+        log('error', 'Erro ao criar equipe: ' + err.message);
+      }
+    });
+
+    function log(level, message) {
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${level}">${message}</span>`;
+      systemLogs.insertBefore(entry, systemLogs.firstChild);
+      while (systemLogs.children.length > 100) systemLogs.lastChild.remove();
+    }
+
+    init();
+  </script>
+</body>
+</html>

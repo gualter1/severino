@@ -1,0 +1,10 @@
+// =============================================================================
+// Analytics.xcconfig – Flags de analytics (opt-out em Debug/Test)
+// =============================================================================
+
+ENABLE_ANALYTICS = NO
+ANALYTICS_PROVIDER = firebase
+ANALYTICS_API_KEY = $(ANALYTICS_API_KEY)
+ANALYTICS_SAMPLE_RATE = 1.0
+ANALYTICS_CRASH_REPORTING = YES
+ANALYTICS_PERFORMANCE_MONITORING = NO

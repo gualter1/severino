@@ -1,0 +1,47 @@
+schema_version: "1.0.0"
+feature:
+  name: "feature-template-name"
+  version: "1.0.0"
+  description: "Canonical feature skeleton implementation adhering to ADR-001 and extracted architectural patterns."
+  tier: "domain" # core, domain, infrastructure, interface
+  owner: "team-backend-architecture"
+
+metadata:
+  repository: "https://github.com/org/repo"
+  path: "src/features/feature-template-name"
+  tags:
+    - "template"
+    - "clean-architecture"
+    - "contract-first"
+
+dependencies:
+  requires:
+    - feature: "shared-kernel"
+      version: "^1.0.0"
+    - service: "redis"
+      version: ">=7.0"
+  provides:
+    capabilities:
+      - "feature.template.execute"
+    events:
+      - "feature.template.executed.v1"
+
+contracts:
+  openapi: "contracts/openapi.yaml"
+  asyncapi: "contracts/asyncapi.yaml"
+  mcp: "contracts/mcp-manifest.json"
+
+security:
+  rbac:
+    default_role: "service"
+    required_scopes:
+      - "feature:read"
+      - "feature:write"
+  data_classification: "internal"
+
+observability:
+  metrics:
+    enabled: true
+    prefix: "feature_template"
+  tracing:
+    propagates_context: true

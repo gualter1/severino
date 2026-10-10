@@ -1,0 +1,9 @@
+{
+  "robotId": "robot-backend-001",
+  "createdAt": "2026-10-10T14:59:49.258Z",
+  "totalTasks": 0,
+  "totalReportsAbsorbed": 0,
+  "skillCandidatesGenerated": 0,
+  "skillsPromoted": 0,
+  "lastTaskAt": null
+}
