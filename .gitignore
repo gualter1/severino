@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Test
+.nyc_output/
+
+# External git repositories (do not commit)
+Repositorios/
+
+# Runtime directories
+rooms/
+grill-sessions/
+whatsapp-session/
+_logs/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Misc
+*.tgz
+.cache/
