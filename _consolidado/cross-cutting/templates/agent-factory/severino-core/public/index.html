@@ -247,10 +247,12 @@ devops"></textarea>
     }
 
     async function api(path, options = {}) {
-      const res = await fetch(`${API_BASE}${path}`, {
-        headers: { 'Content-Type': 'application/json' },
-        ...options,
-      });
+      // Only send Content-Type: application/json when there's a body —
+      // Fastify rejects empty body with JSON content-type ("Body cannot be empty").
+      const hasBody = options.body !== undefined;
+      const { headers: optHeaders, ...rest } = options;
+      const headers = { ...(hasBody ? { 'Content-Type': 'application/json' } : {}), ...optHeaders };
+      const res = await fetch(`${API_BASE}${path}`, { headers, ...rest });
       if (!res.ok) {
         const raw = await res.text();
         let friendly = raw.slice(0, 400);
@@ -456,6 +458,8 @@ devops"></textarea>
       ];
       taskOutput.textContent = lines.join('\n');
       log(response.status === 'failed' ? 'error' : 'success', `Task ${response.taskId} ${response.status}`);
+      // Clear task objective field on success
+      document.getElementById('taskObjective').value = '';
       loadAll();
     }
 
@@ -475,6 +479,8 @@ devops"></textarea>
       try {
         await api('/teams', { method: 'POST', body: JSON.stringify({ teamId, name, domain, roles }) });
         closeModal('createTeamModal');
+        // Clear team creation form
+        document.getElementById('createTeamForm').reset();
         loadTeams();
         log('success', 'Equipe criada: ' + name);
       } catch (err) {
