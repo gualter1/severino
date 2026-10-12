@@ -81,9 +81,10 @@ export class AdapterRegistry {
 
   async startAll(): Promise<void> {
     // Start adapters concurrently so one slow adapter never blocks the others.
+    // Only touch adapters that are enabled and NOT already running.
     await Promise.allSettled(
       Array.from(this.adapters.values())
-        .filter((adapter) => adapter.isEnabled())
+        .filter((adapter) => adapter.isEnabled() && adapter.status !== 'running')
         .map(async (adapter) => {
           try {
             adapter.status = 'starting';

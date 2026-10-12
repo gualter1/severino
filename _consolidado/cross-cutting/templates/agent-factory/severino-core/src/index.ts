@@ -4,6 +4,14 @@ import { skillManager } from "./micro-agents/skill-manager.js";
 import { learningEngine } from "./micro-agents/learning-engine.js";
 import { modelRouter } from "./model-router.js";
 import { loadConfig } from "./config.js";
+import dns from "dns";
+
+// Force IPv4 first (prevents IPv6 timeouts on restricted networks like Telegram API)
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  // ignore if not supported
+}
 
 async function main() {
   console.log(`

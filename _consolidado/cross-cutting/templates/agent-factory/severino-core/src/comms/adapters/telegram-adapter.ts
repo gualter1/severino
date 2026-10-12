@@ -49,24 +49,45 @@ export class TelegramAdapter extends BaseAdapter {
       this.error = err;
     });
 
-    // Start polling
-    try {
-      await this.bot.launch();
-    } catch (e: any) {
-      if (e.message?.includes("409") || e.message?.includes("Conflict")) {
-        throw new Error("409 Conflict: outra instância do bot está rodando. Pare todas (pkill -f 'tsx src/index') e reinicie uma só.");
+    // Start polling with timeout and automatic retry so transient DNS/network blips don't permanently fail the bot.
+    let connected = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await Promise.race([
+          this.bot.launch(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Telegram launch timeout (25s)")), 25000))
+        ]);
+        connected = true;
+        break;
+      } catch (e: any) {
+        console.warn(`⚠️ Telegram launch attempt ${attempt}/3 failed:`, e.message);
+        try { await this.bot.stop().catch(() => null); } catch { /* ignore */ }
+        if (attempt === 3) {
+          if (e.message?.includes("409") || e.message?.includes("Conflict")) {
+            throw new Error("409 Conflict: outra instância do bot está rodando. Pare todas e reinicie uma só.");
+          }
+          throw e;
+        }
+        await new Promise(r => setTimeout(r, 4000));
       }
-      throw e;
+    }
+    if (!connected) {
+      throw new Error("Telegram falhou após 3 tentativas (verifique conexão com api.telegram.org)");
     }
     this.polling = true;
     console.log("🤖 Telegram bot started (polling mode)");
   }
 
   async stop(): Promise<void> {
-    if (this.bot && this.polling) {
-      await this.bot.stop();
+    if (this.bot) {
+      try {
+        await this.bot.stop();
+      } catch { /* ignore — may not have launched */ }
+      this.bot = null;
       this.polling = false;
       console.log("🤖 Telegram bot stopped");
+    } else {
+      this.polling = false;
     }
   }
 
