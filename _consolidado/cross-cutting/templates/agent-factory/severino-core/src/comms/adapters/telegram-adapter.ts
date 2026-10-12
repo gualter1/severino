@@ -14,6 +14,15 @@ export class TelegramAdapter extends BaseAdapter {
       throw new Error("TELEGRAM_BOT_TOKEN não configurado");
     }
 
+    // Kill any competing getUpdates session first (prevents 409 Conflict
+    // when a previous instance died without releasing long-polling).
+    try {
+      const kick = await fetch(`https://api.telegram.org/bot${token}/getUpdates?timeout=1`);
+      await kick.json().catch(() => null);
+    } catch {
+      // Ignore — best effort cleanup
+    }
+
     // Dynamic import to avoid issues if not installed
     const { Telegraf } = await import("telegraf");
     this.bot = new Telegraf(token);
@@ -41,7 +50,14 @@ export class TelegramAdapter extends BaseAdapter {
     });
 
     // Start polling
-    await this.bot.launch();
+    try {
+      await this.bot.launch();
+    } catch (e: any) {
+      if (e.message?.includes("409") || e.message?.includes("Conflict")) {
+        throw new Error("409 Conflict: outra instância do bot está rodando. Pare todas (pkill -f 'tsx src/index') e reinicie uma só.");
+      }
+      throw e;
+    }
     this.polling = true;
     console.log("🤖 Telegram bot started (polling mode)");
   }

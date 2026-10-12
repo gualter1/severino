@@ -30,6 +30,12 @@ export async function registerHttpApi(server: any) {
     return { success: true, ...result };
   });
 
+  // List robots
+  server.get("/robots", async () => {
+    const robots = robotFactory.listRobots();
+    return { robots };
+  });
+
   // Execute task
   server.post("/tasks", async (request: any) => {
     const body = TaskRequestSchema.parse(request.body);

@@ -208,12 +208,20 @@ devops"></textarea>
     }
 
     function connectWebSocket() {
-      const wsUrl = `ws://${window.location.host}/ws`;
+      // Prevent duplicate sockets (e.g. after HMR or double init)
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+      // Close any stale socket before opening a new one
+      try { if (ws) ws.close(); } catch {}
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const wsUrl = `${proto}://${window.location.host}/ws`;
       ws = new WebSocket(wsUrl);
       ws.onopen = () => {
         connectionStatus.textContent = 'Conectado';
         connectionStatus.style.background = '#238636';
         log('info', 'WebSocket conectado');
+        ws.send(JSON.stringify({ type: 'ping' }));
       };
       ws.onclose = () => {
         connectionStatus.textContent = 'Desconectado';
@@ -222,12 +230,17 @@ devops"></textarea>
         setTimeout(connectWebSocket, 5000);
       };
       ws.onerror = (e) => {
-        log('error', 'WebSocket error: ' + e.message);
+        const detail = e && e.message ? e.message : 'falha de conexão (verifique se /ws responde no servidor)';
+        log('error', 'WebSocket error: ' + detail);
       };
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === 'task-result') {
+        if (data.type === 'pong') {
+          log('info', 'WebSocket pong recebido');
+        } else if (data.type === 'task-result') {
           showTaskResult(data.response);
+        } else if (data.type === 'error') {
+          log('error', 'WS: ' + data.message);
         }
       };
     }
