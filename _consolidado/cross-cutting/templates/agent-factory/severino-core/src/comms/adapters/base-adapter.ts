@@ -80,20 +80,23 @@ export class AdapterRegistry {
   }
 
   async startAll(): Promise<void> {
-    for (const adapter of this.adapters.values()) {
-      if (adapter.isEnabled()) {
-        try {
-          adapter.status = 'starting';
-          await adapter.start();
-          adapter.status = 'running';
-          console.log(`✅ Adapter ${adapter.getName()} started`);
-        } catch (e: any) {
-          adapter.status = 'error';
-          adapter.error = e;
-          console.error(`❌ Adapter ${adapter.getName()} failed:`, e.message);
-        }
-      }
-    }
+    // Start adapters concurrently so one slow adapter never blocks the others.
+    await Promise.allSettled(
+      Array.from(this.adapters.values())
+        .filter((adapter) => adapter.isEnabled())
+        .map(async (adapter) => {
+          try {
+            adapter.status = 'starting';
+            await adapter.start();
+            adapter.status = 'running';
+            console.log(`✅ Adapter ${adapter.getName()} started`);
+          } catch (e: any) {
+            adapter.status = 'error';
+            adapter.error = e;
+            console.error(`❌ Adapter ${adapter.getName()} failed:`, e.message);
+          }
+        })
+    );
   }
 
   async stopAll(): Promise<void> {

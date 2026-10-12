@@ -35,7 +35,12 @@ export class SkillManagerAgent {
       console.log(`📚 Skill catalog loaded: ${this.skills.size} skills`);
     } catch {
       console.log("📚 No existing skill catalog, starting fresh");
-      await this.saveCatalog();
+      try {
+        await fs.mkdir(join(this.catalogPath, ".."), { recursive: true });
+        await this.saveCatalog();
+      } catch (e: any) {
+        console.warn(`⚠️ Could not persist skill catalog at ${this.catalogPath}: ${e.message}`);
+      }
     }
   }
 

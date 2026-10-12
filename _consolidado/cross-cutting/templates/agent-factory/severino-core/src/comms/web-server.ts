@@ -58,12 +58,12 @@ export async function createWebServer() {
     return reply.redirect("/ui/");
   });
 
-  // Initialize communication adapters
-  try {
-    await initializeAdapters();
-  } catch (e: any) {
+  // Initialize communication adapters in background (non-blocking).
+  // A hanging adapter (e.g. Telegram long-polling with flaky network)
+  // must NEVER block the HTTP server boot.
+  initializeAdapters().catch((e: any) => {
     console.warn("⚠️ Adapters initialization warning:", e.message);
-  }
+  });
 
   // Start server
   try {
