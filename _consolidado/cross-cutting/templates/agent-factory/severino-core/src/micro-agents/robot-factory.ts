@@ -6,6 +6,7 @@ import { TaskRequest, TaskResponse } from "../types.js";
 import { createRobot as createRobotFactory } from "../../../create-robot.ts";
 import { resourceBroker } from "./resource-broker.js";
 import { resourceManager } from "./resource-manager.js";
+import { HOUSES, houseForDomain, isHouseId, robotIdForRoom, roomTitle, shortHouse } from "./houses.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = join(__filename, "..");
@@ -193,16 +194,20 @@ export class RobotFactoryAgent {
     roles: string[];
     initialSkills?: string[];
   }): Promise<{ teamId: string; robots: RobotInstance[] }> {
+    // Se for uma CASA conhecida, funda a casa pré-fabricada (todos os quartos de uma vez)
+    if (isHouseId(request.teamId)) {
+      return this.foundHouse(request.teamId);
+    }
     const robots: RobotInstance[] = [];
 
     for (let i = 0; i < request.roles.length; i++) {
       const role = request.roles[i];
-      const robotId = `${request.teamId}-${role}-${i + 1}`;
+      const robotId = robotIdForRoom(role, request.teamId, i + 1);
       const robot = await this.createRobot({
         robotId,
         role: role as any,
         teamId: request.teamId,
-        name: `${request.name} ${role}`,
+        name: `${roomTitle(role)} · ${request.name}`,
       });
       robots.push(robot);
     }
@@ -219,6 +224,115 @@ export class RobotFactoryAgent {
     console.log(`🏢 Team created: ${request.name} (${robots.length} robots)`);
     await this.saveState();
     return { teamId: request.teamId, robots };
+  }
+
+  /**
+   * 🏠 Funda uma casa pré-fabricada: cria todos os quartos padrão de uma vez.
+   * Idempotente: quartos que já existem são reaproveitados.
+   */
+  async foundHouse(houseId: string): Promise<{ teamId: string; robots: RobotInstance[] }> {
+    const house = HOUSES[houseId];
+    if (!house) throw new Error(`Casa desconhecida: ${houseId}`);
+    const existing = this.teams.get(houseId);
+    const robots: RobotInstance[] = [];
+    const counters = new Map<string, number>();
+
+    for (const room of house.rooms) {
+      // Reaproveita morador existente do mesmo quarto
+      const current = this.teams.get(houseId);
+      const occupant = (current?.robotIds || [])
+        .map(id => this.robots.get(id))
+        .find(r => r && r.role === room);
+      if (occupant) {
+        robots.push(occupant);
+        continue;
+      }
+      const n = (counters.get(room) || 0) + 1;
+      counters.set(room, n);
+      const robot = await this.createRobot({
+        robotId: robotIdForRoom(room, houseId, n),
+        role: room,
+        teamId: houseId,
+        name: `${roomTitle(room)} · ${house.name}`,
+      });
+      robots.push(robot);
+    }
+
+    this.teams.set(houseId, {
+      teamId: houseId,
+      name: house.name,
+      domain: house.domains[0],
+      robotIds: robots.map(r => r.robotId),
+      status: "active",
+      totalTasksCompleted: existing?.totalTasksCompleted || 0,
+    });
+
+    console.log(`🏠 Casa fundada: ${house.name} (${robots.length} quartos)`);
+    await this.saveState();
+    return { teamId: houseId, robots };
+  }
+
+  /**
+   * 🛏️ Garante um quarto (role) dentro da casa. Se já houver morador ocioso,
+   * devolve ele; senão constrói um novo quarto numerado.
+   */
+  async ensureRoom(houseId: string, role: string): Promise<RobotInstance> {
+    const team = this.teams.get(houseId);
+    if (!team) {
+      const founded = await this.foundHouse(houseId);
+      const match = founded.robots.find(r => r.role === role);
+      if (match) return match;
+      return this.createRobot({
+        robotId: robotIdForRoom(role, houseId, 1),
+        role,
+        teamId: houseId,
+        name: `${roomTitle(role)} · ${HOUSES[houseId]?.name || houseId}`,
+      });
+    }
+    const occupant = team.robotIds
+      .map(id => this.robots.get(id))
+      .find(r => r && r.role === role && r.status === "idle");
+    if (occupant) return occupant;
+    const sameRoom = team.robotIds.filter(id => this.robots.get(id)?.role === role).length;
+    const robot = await this.createRobot({
+      robotId: robotIdForRoom(role, houseId, sameRoom + 1),
+      role,
+      teamId: houseId,
+      name: `${roomTitle(role)} · ${team.name}`,
+    });
+    team.robotIds.push(robot.robotId);
+    await this.saveState();
+    return robot;
+  }
+
+  /**
+   * 🧩 Tech Lead quebra a demanda em subtarefas por quarto.
+   * Heurística Fase 1 (sem LLM extra): fatia por conectores e palavras-chave.
+   */
+  splitDemand(objective: string, domain: string): { room: string; subtask: string }[] {
+    const parts = objective
+      .split(/\s+e\s+|\s*;\s*|\s*\|\s*|\n+\s*[-*]\s*/i)
+      .map(s => s.trim())
+      .filter(s => s.length >= 4);
+    const chunks = parts.length > 1 ? parts : [objective];
+    // Mapeia cada chunk pro quarto mais provável via keyword do postman-like
+    return chunks.map(chunk => ({ room: this.roomForChunk(chunk, domain), subtask: chunk }));
+  }
+
+  private roomForChunk(chunk: string, domain: string): string {
+    const c = chunk.toLowerCase();
+    if (/react|vue|angular|css|html|tailwind|tela|página|pagina|componente|frontend|ui\b/.test(c)) return "frontend-developer";
+    if (/test|qa|cypress|playwright|jest|vitest|e2e|cobertura/.test(c)) return "qa-engineer";
+    if (/docker|k8s|kubernetes|pipeline|ci\/?cd|deploy|terraform|infra/.test(c)) return "devops-engineer";
+    if (/auth|seguran|vulnerab|pentest|owasp|cripto|permission/.test(c)) return "security-engineer";
+    if (/endpoint|api|backend|banco|sql|migration|webhook|fila|cache/.test(c)) return "backend-developer";
+    // fallback: quarto do domínio
+    const map: Record<string, string> = {
+      backend: "backend-developer", frontend: "frontend-developer", qa: "qa-engineer",
+      devops: "devops-engineer", security: "security-engineer", "tech-lead": "tech-lead",
+      sales: "sales-specialist", product: "product-manager", data: "data-engineer", research: "researcher",
+    };
+    return map[domain] || "generalist";
   }
 
   async createRobot(params: {

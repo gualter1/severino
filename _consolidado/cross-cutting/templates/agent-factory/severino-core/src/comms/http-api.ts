@@ -37,55 +37,54 @@ export async function registerHttpApi(server: any) {
     return { robots };
   });
 
-  // Execute task
+  // Execute task — Carteiro entrega na CASA, Tech Lead distribui pros quartos
   server.post("/tasks", async (request: any) => {
     const body = TaskRequestSchema.parse(request.body);
     const taskId = body.id || `task-${Date.now()}`;
 
-    // Use Postman agent for routing
+    // Use Postman agent for routing (casa + quarto)
     const decision = await postman.route(body.objective, {
       domain: body.domain,
       teamId: body.teamId
     });
 
+    const resolvedDomain = decision.domain;
+    const houseId = (decision as any).houseId || decision.teamId;
+    const wantedRoom = (decision as any).room;
+
     let robotId: string;
-    let targetTeamId = decision.teamId;
+    let targetTeamId = houseId;
 
     if (decision.action === 'use-existing' && decision.robotId) {
       robotId = decision.robotId;
     } else {
-      // Need to create a new team or add robot to team
-      // Check if team already exists
-      let team = robotFactory.getTeam(targetTeamId);
+      // Casa não existe -> funda pré-fabricada; existe mas lotada -> abre quarto
+      let team = robotFactory.getTeam(houseId);
       if (!team) {
-        // Create new team with roles from postman decision or default
-        const roles = decision.roles ?? [body.domain, 'generalist'];
-        const teamResult = await robotFactory.createTeam({
-          teamId: targetTeamId,
-          name: `Auto Team ${body.domain} ${decision.roles?.join(' ') ?? ''}`,
-          domain: body.domain,
-          roles: roles,
-        });
-        targetTeamId = teamResult.teamId;
-        robotId = teamResult.robots[0].robotId;
+        const founded = await robotFactory.foundHouse(houseId);
+        targetTeamId = founded.teamId;
+        const match = wantedRoom ? founded.robots.find(r => r.role === wantedRoom) : undefined;
+        robotId = (match || founded.robots[0]).robotId;
       } else {
-        // Team exists but no idle robot, create a new robot in this team
-        const newRobotId = `${targetTeamId}-${body.domain}-${Date.now()}`;
-        const newRobot = await robotFactory.createRobot({
-          robotId: newRobotId,
-          role: body.domain,
-          teamId: targetTeamId,
-          name: `${team.name} ${body.domain}`,
-        });
-        robotId = newRobot.robotId;
+        const room = wantedRoom || (decision.roles?.[0] ?? resolvedDomain);
+        const occupant = await robotFactory.ensureRoom(houseId, room);
+        robotId = occupant.robotId;
       }
     }
 
-    const task = { ...body, id: taskId, teamId: targetTeamId };
+    const task = { ...body, domain: resolvedDomain, id: taskId, teamId: targetTeamId };
     const response = await robotFactory.executeTask(robotId, task);
+
+    // Tech Lead quebra a demanda restante pros outros quartos (visível no dashboard)
+    let distribution: { room: string; subtask: string }[] = [];
+    try {
+      distribution = robotFactory.splitDemand(body.objective, resolvedDomain);
+    } catch { /* heurística nunca quebra a tarefa */ }
+
     return {
       ...response,
-      routingDecision: decision
+      routingDecision: decision,
+      distribution,
     };
   });
 

@@ -1,84 +1,116 @@
 import { robotFactory } from "./robot-factory.js";
 import { learningEngine } from "./learning-engine.js";
 import { deriveTaskSignature } from "@severino-learning/curated-context.js";
+import { houseForDomain } from "./houses.js";
 import { TaskRequest } from "../types.js";
 
 export interface PostmanDecision {
   action: 'use-existing' | 'create-new';
-  teamId: string;
+  teamId: string;      // houseId (ex: casa-dev)
   robotId?: string;
-  domain: string;
+  domain: string;      // domínio original da tarefa
+  houseId: string;     // casa destino
+  houseName: string;
+  room?: string;       // quarto sugerido (role)
   roles?: string[];
   reason: string;
 }
 
 export class PostmanAgent {
   async route(objective: string, hints: { domain?: string; teamId?: string } = {}): Promise<PostmanDecision> {
-    // If hints.teamId provided, validate team exists
     const domain = hints.domain || this.inferDomainFromObjective(objective);
     const taskSignature = deriveTaskSignature(objective);
+    const house = houseForDomain(domain);
+    const wantedRoom = this.inferRolesFromObjective(objective, domain)[0] || "generalist";
 
+    // Override manual: respeita teamId explícito (legado), mas sugere a casa
     if (hints.teamId) {
       const team = robotFactory.getTeam(hints.teamId);
       if (!team) {
         return {
           action: 'create-new',
           teamId: hints.teamId,
+          houseId: house.houseId,
+          houseName: house.name,
+          room: wantedRoom,
           domain,
           roles: this.inferRolesFromObjective(objective, domain),
-          reason: `Equipe '${hints.teamId}' não encontrada — Severino vai fundar a casa automaticamente.`
+          reason: `Equipe '${hints.teamId}' não encontrada — Carteiro sugere a ${house.name}.`
         };
       }
       const robots = team.robotIds.map(id => robotFactory.getRobot(id)).filter(Boolean);
       const idleRobots = robots.filter(r => r && r.status === 'idle');
-      if (idleRobots.length > 0) {
+      // Prefere morador do quarto certo
+      const roomMatch = idleRobots.find(r => r!.role === wantedRoom);
+      const chosen = roomMatch || idleRobots[0];
+      if (chosen) {
         return {
           action: 'use-existing',
           teamId: hints.teamId,
-          robotId: idleRobots[0]!.robotId,
+          robotId: chosen!.robotId,
+          houseId: house.houseId,
+          houseName: house.name,
+          room: chosen!.role,
           domain,
-          reason: `Equipe '${hints.teamId}' encontrada com robô ocioso ${idleRobots[0]!.robotId}.`
+          reason: `Entrega manual em '${hints.teamId}' — quarto '${chosen!.role}' (${chosen!.robotId}) atendeu.`
         };
       }
       return {
         action: 'create-new',
         teamId: hints.teamId,
+        houseId: house.houseId,
+        houseName: house.name,
+        room: wantedRoom,
         domain,
         roles: this.inferRolesFromObjective(objective, domain),
-        reason: `Equipe '${hints.teamId}' existe mas sem robôs ociosos — criando novo robô na mesma casa.`
+        reason: `Casa '${hints.teamId}' lotada — abrindo novo quarto '${wantedRoom}'.`
       };
     }
 
-    // No teamId hint - check if any team exists for inferred domain
-    const allTeams = robotFactory.listTeams();
-    const domainTeams = allTeams.filter(t => t.domain === domain);
-
-    if (domainTeams.length > 0) {
-      for (const team of domainTeams) {
-        const robots = team.robotIds.map(id => robotFactory.getRobot(id)).filter(Boolean);
-        const idleRobots = robots.filter(r => r && r.status === 'idle');
-        if (idleRobots.length > 0) {
-          return {
-            action: 'use-existing',
-            teamId: team.teamId,
-            robotId: idleRobots[0].robotId,
-            domain,
-            reason: `Carteiro entregou na casa existente da rua '${domain}' (${team.name}), robô ${idleRobots[0].robotId} atendeu.`
-          };
-        }
+    // Fluxo padrão: Carteiro entrega na CASA do domínio
+    const team = robotFactory.getTeam(house.houseId);
+    if (team) {
+      const robots = team.robotIds.map(id => robotFactory.getRobot(id)).filter(Boolean);
+      const idleRobots = robots.filter(r => r && r.status === 'idle');
+      // 1) quarto exato 2) qualquer morador ocioso da casa
+      const roomMatch = idleRobots.find(r => r!.role === wantedRoom);
+      const chosen = roomMatch || idleRobots[0];
+      if (chosen) {
+        const via = roomMatch ? `quarto '${wantedRoom}'` : `quarto '${chosen!.role}' (cobertura)`;
+        return {
+          action: 'use-existing',
+          teamId: house.houseId,
+          robotId: chosen!.robotId,
+          houseId: house.houseId,
+          houseName: house.name,
+          room: chosen!.role,
+          domain,
+          reason: `📬 Carteiro entregou na ${house.name} — ${via}, morador ${chosen!.robotId} atendeu.`
+        };
       }
+      // Casa existe mas lotada: Tech Lead abre novo quarto
+      return {
+        action: 'create-new',
+        teamId: house.houseId,
+        houseId: house.houseId,
+        houseName: house.name,
+        room: wantedRoom,
+        domain,
+        roles: [wantedRoom],
+        reason: `📬 Carteiro entregou na ${house.name}, mas todos os quartos ocupados — Tech Lead abrindo quarto '${wantedRoom}'.`
+      };
     }
 
-    // No suitable team/robot found - Severino founds new team on demand
-    const suggestedTeamId = `${domain}-street-${Date.now().toString().slice(-4)}`;
-    const suggestedRoles = this.inferRolesFromObjective(objective, domain);
-    
+    // Casa ainda não fundada: Severino constrói a casa pré-fabricada
     return {
       action: 'create-new',
-      teamId: suggestedTeamId,
+      teamId: house.houseId,
+      houseId: house.houseId,
+      houseName: house.name,
+      room: wantedRoom,
       domain,
-      roles: suggestedRoles,
-      reason: `Nenhuma casa no domínio '${domain}' — Severino fundou a equipe '${suggestedTeamId}' com papéis [${suggestedRoles.join(', ')}] para esta tarefa.`
+      roles: house.rooms,
+      reason: `📬 Nenhuma casa para '${domain}' — Severino fundou a ${house.name} com quartos [${house.rooms.join(', ')}].`
     };
   }
 
