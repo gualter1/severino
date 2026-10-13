@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 import { loadConfig } from "../config.js";
 import { TaskRequest, TaskResponse } from "../types.js";
 import { createRobot as createRobotFactory } from "../../../create-robot.ts";
+import { resourceBroker } from "./resource-broker.js";
+import { resourceManager } from "./resource-manager.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = join(__filename, "..");
@@ -22,6 +24,110 @@ export class RobotFactoryAgent {
   private config = loadConfig();
   private robots = new Map<string, RobotInstance>();
   private teams = new Map<string, { teamId: string; name: string; domain: string; robotIds: string[]; status: string; totalTasksCompleted: number }>();
+
+  constructor() {
+    this.loadState();
+  }
+
+  private async loadState() {
+    try {
+      const teamsPath = join(this.config.roomsDir, 'teams.json');
+      const data = await fs.readFile(teamsPath, 'utf-8');
+      const state = JSON.parse(data);
+      // Reconstruct teams
+      for (const teamData of state.teams || []) {
+        this.teams.set(teamData.teamId, {
+          teamId: teamData.teamId,
+          name: teamData.name,
+          domain: teamData.domain,
+          robotIds: teamData.robotIds,
+          status: teamData.status || 'active',
+          totalTasksCompleted: teamData.totalTasksCompleted || 0,
+        });
+      }
+      // Reconstruct robots by scanning each robot folder for agent.json
+      // (roomsDir contains subfolders per robot)
+      const roomsDir = this.config.roomsDir;
+      const entries = await fs.readdir(roomsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          const robotId = entry.name;
+          const agentPath = join(roomsDir, robotId, 'agent.json');
+          try {
+            const agentContent = await fs.readFile(agentPath, 'utf-8');
+            const agent = JSON.parse(agentContent);
+            // Only create RobotInstance if not already present (maybe from team load)
+            if (!this.robots.has(robotId)) {
+              const robot: RobotInstance = {
+                robotId,
+                role: agent.role || 'unknown',
+                teamId: agent.teamId || 'unknown',
+                roomDir: join(roomsDir, robotId),
+                capabilities: agent.capabilities || [],
+                status: 'idle',
+              };
+              this.robots.set(robotId, robot);
+              // Ensure team exists
+              if (!this.teams.has(robot.teamId)) {
+                this.teams.set(robot.teamId, {
+                  teamId: robot.teamId,
+                  name: `Auto-loaded Team ${robot.teamId}`,
+                  domain: robot.domain || 'backend',
+                  robotIds: [],
+                  status: 'active',
+                  totalTasksCompleted: 0,
+                });
+              }
+              // Add robot to team's robotIds
+              const team = this.teams.get(robot.teamId);
+              if (team && !team.robotIds.includes(robotId)) {
+                team.robotIds.push(robotId);
+              }
+            }
+          } catch (err) {
+            // Ignore errors reading individual agent.json (maybe not a robot folder)
+            console.warn(`Could not load agent for robot ${robotId}:`, err.message);
+          }
+        }
+      }
+      console.log(`💾 Loaded state: ${this.teams.size} teams, ${this.robots.size} robots`);
+    } catch (err) {
+      console.warn(`💾 No persisted state found or error loading:`, err.message);
+      // No state yet, start fresh
+    }
+  }
+
+  private inferSkillsFromTask(task: TaskRequest): string[] {
+    const objective = task.objective.toLowerCase();
+    const skills: string[] = [];
+
+    // Match skills from available catalog based on objective keywords
+    if (objective.includes('endpoint') || objective.includes('api')) skills.push('backend-developer');
+    if (objective.includes('react') || objective.includes('frontend')) skills.push('frontend-developer');
+    if (objective.includes('test')) skills.push('qa-engineer');
+    if (objective.includes('docker') || objective.includes('ci/cd')) skills.push('devops-engineer');
+
+    return skills;
+  }
+
+  private async saveState() {
+    try {
+      const teamsData = Array.from(this.teams.values()).map(t => ({
+        teamId: t.teamId,
+        name: t.name,
+        domain: t.domain,
+        robotIds: t.robotIds,
+        status: t.status,
+        totalTasksCompleted: t.totalTasksCompleted,
+      }));
+      const state = { teams: teamsData };
+      const teamsPath = join(this.config.roomsDir, 'teams.json');
+      await fs.writeFile(teamsPath, JSON.stringify(state, null, 2), 'utf-8');
+      console.log(`💾 State saved: ${this.teams.size} teams`);
+    } catch (err) {
+      console.error(`❌ Failed to save state:`, err.message);
+    }
+  }
 
   async createTeam(request: {
     teamId: string;
@@ -54,6 +160,7 @@ export class RobotFactoryAgent {
     });
 
     console.log(`🏢 Team created: ${request.name} (${robots.length} robots)`);
+    await this.saveState();
     return { teamId: request.teamId, robots };
   }
 
@@ -93,6 +200,7 @@ export class RobotFactoryAgent {
     };
 
     this.robots.set(actualRobotId, robot);
+    await this.saveState();
     return robot;
   }
 
@@ -107,8 +215,31 @@ export class RobotFactoryAgent {
     let result: any;
     let reportSummary = "";
     let status: "completed" | "failed" | "partial" = "completed";
+    const checkedOutTokens: { token: string; resourceId: string }[] = [];
 
     try {
+      // 0. Resource Broker: checkout required skills/tools (auto-registra se não existir)
+      const requiredSkills = this.inferSkillsFromTask(task);
+
+      for (const skillId of requiredSkills) {
+        try {
+          const existing = resourceBroker.listResources().find(r => r.resourceId === skillId);
+          if (!existing) {
+            resourceBroker.registerResource({
+              resourceId: skillId,
+              name: skillId,
+              type: "skill",
+              description: `Auto-registered skill ${skillId} para domínio ${task.domain}`,
+            });
+          }
+          const { token } = resourceBroker.checkout(skillId, robot.robotId, robot.teamId, 1800000);
+          checkedOutTokens.push({ token, resourceId: skillId });
+          console.log(`🔐 Resource Broker: Skill '${skillId}' checked out for robot ${robot.robotId}`);
+        } catch (e: any) {
+          console.warn(`⚠️ Resource Broker: Could not checkout skill '${skillId}': ${e.message}`);
+        }
+      }
+
       // Build context from Severino Learning
       const { severinoLearning } = await import("@severino-learning/index.js");
       const { injectionMarkdown, taskSignature, hasContext, contextVersion } = await severinoLearning.buildContextForRobot(
@@ -123,7 +254,7 @@ export class RobotFactoryAgent {
       const response = await modelRouter.complete([
         { role: "system", content: "Você é um robô worker. Execute a tarefa e gere relatório JSON no final." },
         { role: "user", content: prompt },
-      ], { maxTokens: 8192, temperature: 0.2 }) as { content: string };
+      ], { maxTokens: 8192, temperature: 0.2 }) as { content: string; usage?: { totalTokens?: number } };
 
       // Parse response for report. Only trust it if it looks like a real
       // ExecutionReport (has meta.domain) — models often return unrelated
@@ -192,8 +323,21 @@ export class RobotFactoryAgent {
       console.error(`❌ executeTask failed [${task.id}]:`, error.message);
       if (error.stack) console.error(error.stack.split("\n").slice(0, 6).join("\n"));
     } finally {
+      // Resource Broker: Checkin resources back
+      for (const { token, resourceId } of checkedOutTokens) {
+        try {
+          resourceBroker.checkin(token);
+          console.log(`🔓 Resource Broker: Skill '${resourceId}' checked in from robot ${robot.robotId}`);
+        } catch (e: any) {
+          console.warn(`⚠️ Resource Broker: Could not checkin skill '${resourceId}': ${e.message}`);
+        }
+      }
       robot.status = "idle";
       robot.currentTaskId = undefined;
+      // Atualiza contador e persiste estado
+      const team = this.teams.get(robot.teamId);
+      if (team && status === "completed") team.totalTasksCompleted += 1;
+      await this.saveState();
     }
 
     return {
