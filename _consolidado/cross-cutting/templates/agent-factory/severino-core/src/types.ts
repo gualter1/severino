@@ -3,7 +3,7 @@ import { z } from "zod";
 export const TaskRequestSchema = z.object({
   id: z.string().optional(),
   teamId: z.string().optional(),
-  domain: z.enum(["backend", "frontend", "qa", "devops", "security", "sales", "product", "research", "data", "tech-lead"]),
+  domain: z.enum(["backend", "frontend", "qa", "devops", "security", "sales", "product", "research", "data", "tech-lead"]).optional(),
   objective: z.string().min(10),
   contextOverrides: z.record(z.any()).optional(),
   requiredCapabilities: z.array(z.string()).optional(),

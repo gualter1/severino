@@ -5,6 +5,7 @@ import { skillManager } from "../micro-agents/skill-manager.js";
 import { learningEngine } from "../micro-agents/learning-engine.js";
 import { reporter } from "../micro-agents/reporter.js";
 import { modelRouter } from "../model-router.js";
+import { postman } from "../micro-agents/postman.js";
 
 export async function registerHttpApi(server: any) {
   // Health check
@@ -41,31 +42,51 @@ export async function registerHttpApi(server: any) {
     const body = TaskRequestSchema.parse(request.body);
     const taskId = body.id || `task-${Date.now()}`;
 
-    // Find available robot in team or create ad-hoc
-    let robotId: string;
+    // Use Postman agent for routing
+    const decision = await postman.route(body.objective, {
+      domain: body.domain,
+      teamId: body.teamId
+    });
 
-    if (body.teamId) {
-      const team = robotFactory.getTeam(body.teamId);
-      if (!team) throw new Error(`Team not found: ${body.teamId}`);
-      const robots = team.robotIds.map(id => robotFactory.getRobot(id)).filter(Boolean);
-      const available = robots.find(r => r && r.status === "idle");
-      if (!available) throw new Error("No available robots in team");
-      robotId = available.robotId;
+    let robotId: string;
+    let targetTeamId = decision.teamId;
+
+    if (decision.action === 'use-existing' && decision.robotId) {
+      robotId = decision.robotId;
     } else {
-      // Create ad-hoc robot for the domain
-      const adHocId = `ad-hoc-${body.domain}-${Date.now()}`;
-      await robotFactory.createRobot({
-        robotId: `robot-${adHocId}`,
-        role: body.domain,
-        teamId: "ad-hoc",
-        name: `Ad-hoc ${body.domain}`,
-      });
-      robotId = `robot-${adHocId}`;
+      // Need to create a new team or add robot to team
+      // Check if team already exists
+      let team = robotFactory.getTeam(targetTeamId);
+      if (!team) {
+        // Create new team with roles from postman decision or default
+        const roles = decision.roles ?? [body.domain, 'generalist'];
+        const teamResult = await robotFactory.createTeam({
+          teamId: targetTeamId,
+          name: `Auto Team ${body.domain} ${decision.roles?.join(' ') ?? ''}`,
+          domain: body.domain,
+          roles: roles,
+        });
+        targetTeamId = teamResult.teamId;
+        robotId = teamResult.robots[0].robotId;
+      } else {
+        // Team exists but no idle robot, create a new robot in this team
+        const newRobotId = `${targetTeamId}-${body.domain}-${Date.now()}`;
+        const newRobot = await robotFactory.createRobot({
+          robotId: newRobotId,
+          role: body.domain,
+          teamId: targetTeamId,
+          name: `${team.name} ${body.domain}`,
+        });
+        robotId = newRobot.robotId;
+      }
     }
 
-    const task = { ...body, id: taskId };
+    const task = { ...body, id: taskId, teamId: targetTeamId };
     const response = await robotFactory.executeTask(robotId, task);
-    return response;
+    return {
+      ...response,
+      routingDecision: decision
+    };
   });
 
   // Skill catalog

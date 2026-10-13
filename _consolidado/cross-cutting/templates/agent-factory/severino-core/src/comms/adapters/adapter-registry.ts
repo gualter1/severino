@@ -3,6 +3,7 @@ import { TelegramAdapter, createTelegramAdapter } from "./telegram-adapter.ts";
 import { WhatsAppAdapter, createWhatsAppAdapter } from "./whatsapp-adapter.ts";
 import { robotFactory } from "../../micro-agents/robot-factory.js";
 import { reporter } from "../../micro-agents/reporter.js";
+import { postman } from "../../micro-agents/postman.js";
 import { modelRouter } from "../../model-router.js";
 import { loadConfig } from "../../config.js";
 
@@ -167,35 +168,58 @@ ${robotList}
     // Send initial response
     const adapter = adapterRegistry.get(adapterName);
     if (adapter) {
-      await adapter.sendMessage(chatId, `🔄 Iniciando tarefa...\n\`${objective.slice(0, 100)}\`\n${teamId ? `🏢 Equipe: ${teamId}` : "🤖 Modo ad-hoc"}`);
+      await adapter.sendMessage(chatId, `🔄 Iniciando tarefa...\n\`${objective.slice(0, 100)}\`\n${teamId ? `🏢 Equipe: ${teamId}` : "📬 Carteiro está buscando a melhor equipe..."}`);
     }
 
     try {
+      // Use Postman agent to route task (domain inferred automatically)
+      const decision = await postman.route(objective, { teamId });
+
+      let robotId: string;
+      let targetTeamId = decision.teamId;
+      const domain = decision.domain;
+
+      if (decision.action === 'use-existing' && decision.robotId) {
+        robotId = decision.robotId;
+      } else {
+        let team = robotFactory.getTeam(targetTeamId);
+        if (!team) {
+          const teamResult = await robotFactory.createTeam({
+            teamId: targetTeamId,
+            name: `Auto Team ${domain} ${decision.roles?.join(' ') ?? ''}`,
+            domain: domain,
+            roles: decision.roles ?? [domain, 'generalist'],
+          });
+          targetTeamId = teamResult.teamId;
+          robotId = teamResult.robots[0].robotId;
+        } else {
+          const newRobotId = `${targetTeamId}-${domain}-${Date.now()}`;
+          const newRobot = await robotFactory.createRobot({
+            robotId: newRobotId,
+            role: domain,
+            teamId: targetTeamId,
+            name: `${team.name} ${domain}`,
+          });
+          robotId = newRobot.robotId;
+        }
+      }
+
       const task: any = {
         id: taskId,
-        domain: "backend", // Could be inferred from objective
+        domain: domain,
         objective,
-        teamId,
+        teamId: targetTeamId,
       };
 
-      const response = await robotFactory.executeTask(
-        task.teamId ? robotFactory.getTeam(task.teamId)?.robotIds[0] || "" : 
-          (await robotFactory.createRobot({
-            robotId: `ad-hoc-${Date.now()}`,
-            role: "backend",
-            teamId: "ad-hoc",
-            name: "Ad-hoc Backend",
-          })).robotId,
-        task
-      );
-
+      const response = await robotFactory.executeTask(robotId, task);
       const formatted = reporter.formatTaskCompletion(response);
+      const routingInfo = `\n\n📬 *Carteiro:* ${decision.reason}`;
       
       if (adapter) {
-        await adapter.sendMessage(chatId, formatted, { parseMode: "markdown" });
+        await adapter.sendMessage(chatId, formatted + routingInfo, { parseMode: "markdown" });
       }
       
-      return formatted;
+      return formatted + routingInfo;
     } catch (e: any) {
       const error = `❌ Erro ao executar tarefa: ${e.message}`;
       if (adapter) {

@@ -96,11 +96,11 @@
                 <option value="tech-lead">Tech Lead</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group hidden" id="teamIdGroup">
               <label>Team ID (opcional)</label>
               <input type="text" id="taskTeamId" placeholder="deixe vazio para ad-hoc">
             </div>
-            <div class="form-group">
+            <div class="form-group hidden" id="robotIdGroup">
               <label>Robot ID (opcional)</label>
               <input type="text" id="taskRobotId" placeholder="auto-seleciona se vazio">
             </div>
@@ -109,6 +109,10 @@
           <div class="form-group">
             <label>Objetivo da Tarefa <span style="color:#8b949e;font-weight:400;">(mín. 10 caracteres)</span></label>
             <textarea id="taskObjective" rows="3" minlength="10" placeholder="Ex: Criar endpoint POST /api/vendas com validação Zod e testes" required></textarea>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <button type="button" class="btn btn-secondary" id="advancedToggle" onclick="toggleAdvanced()"><span id="advancedToggleText">⚙️ Mostrar opções avançadas</span></button>
+            <span style="color:#8b949e;font-size:0.8rem;">📬 Carteiro roteará automaticamente</span>
           </div>
         </form>
         <div class="task-output hidden" id="taskOutput"></div>
@@ -196,6 +200,17 @@ devops"></textarea>
     const robotsList = document.getElementById('robotsList');
     const taskForm = document.getElementById('taskForm');
     const taskOutput = document.getElementById('taskOutput');
+    const advancedToggle = document.getElementById('advancedToggle');
+
+    // Toggle advanced options
+    function toggleAdvanced() {
+      const teamGroup = document.getElementById('teamIdGroup');
+      const robotGroup = document.getElementById('robotIdGroup');
+      teamGroup.classList.toggle('hidden');
+      robotGroup.classList.toggle('hidden');
+      const isHidden = teamGroup.classList.contains('hidden');
+      document.getElementById('advancedToggleText').textContent = isHidden ? '⚙️ Mostrar opções avançadas' : '⚙️ Ocultar opções avançadas';
+    }
     const skillsList = document.getElementById('skillsList');
     const contextsList = document.getElementById('contextsList');
     const resourcesList = document.getElementById('resourcesList');
