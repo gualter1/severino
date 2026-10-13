@@ -51,6 +51,14 @@ export interface PipelineStep {
   subtask: string;
 }
 
+/** Uma parte verificável do DAG: 1 room responsável + dependências explícitas. */
+export interface PipelineParte {
+  parteId: string;
+  room: string;
+  subtask: string;
+  dependeDe: string[];
+}
+
 export class HouseLeader {
   readonly houseId: string;
 
@@ -114,6 +122,31 @@ export class HouseLeader {
     );
     return steps;
   }
+
+  /**
+   * 🕸️ breakDownDAG — pipeline canônico da casa como DAG de partes verificáveis.
+   * Cada parte tem 1 room responsável + dependeDe explícito. Não executa nada,
+   * só planeja; `runHousePipelineDAG` executa respeitando as dependências.
+   *
+   * - casa-dev: construir(quarto-alvo) → revisar(qa como review) →
+   *   proteger(security) → testar(qa). Se o objective tem front+back
+   *   (ex: html+css+js), gera 2 ramos paralelos (frontend, backend) que
+   *   convergem para o review.
+   * - casa-negocios / casa-dados: quarto-alvo → tech-lead (consolida).
+   * - Só usa quarto que existe em `house.rooms` (proteger é pulado se
+   *   security-engineer não existe na casa).
+   */
+  breakDownDAG(carta: Carta): PipelineParte[] {
+    const house = HOUSES[this.houseId];
+    const rooms = new Set(house.rooms);
+    const objective = (carta.objective || "").trim() || carta.objective;
+    const fallback = defaultRoomForHouse(house.houseId, house.rooms);
+
+    if (this.houseId === "casa-dev") {
+      return buildDevDAG(objective, fallback, rooms);
+    }
+    return buildSimpleDAG(objective, fallback, house.techLeadRoom, rooms);
+  }
 }
 
 // ---- helpers ----
@@ -145,4 +178,127 @@ function defaultRoomForHouse(houseId: string, rooms: string[]): string {
   const ordered = prefs[houseId] || ["generalist"];
   for (const r of ordered) if (rooms.includes(r)) return r;
   return rooms[0] || "generalist";
+}
+
+/** Objective pede front+back? (ex: "site html media notas com javascript") */
+function querFrontEBack(objective: string): boolean {
+  const o = (objective || "").toLowerCase();
+  const front =
+    /html|css|tailwind|tela|layout|componente|site|p[aá]gina|\bui\b|frontend/.test(o);
+  const back =
+    /javascript|typescript|\bjs\b|\bts\b|api|endpoint|banco|\bsql\b|servidor|backend|l[oó]gica|calcul|media|m[eé]dia|nota/.test(
+      o
+    );
+  return front && back;
+}
+
+/** casa-dev: canônico construir → revisar → proteger → testar (+ 2 ramos front/back). */
+function buildDevDAG(
+  objective: string,
+  fallback: string,
+  rooms: Set<string>
+): PipelineParte[] {
+  const partes: PipelineParte[] = [];
+  const tem = (r: string) => rooms.has(r);
+
+  // Ramo duplo front+back: dois construtores paralelos que convergem no review.
+  if (
+    querFrontEBack(objective) &&
+    tem("frontend-developer") &&
+    tem("backend-developer")
+  ) {
+    partes.push({
+      parteId: "construir-front",
+      room: "frontend-developer",
+      subtask: `${objective} [etapa construir-front: estrutura html+css]`,
+      dependeDe: [],
+    });
+    partes.push({
+      parteId: "construir-back",
+      room: "backend-developer",
+      subtask: `${objective} [etapa construir-back: lógica javascript]`,
+      dependeDe: [],
+    });
+  } else {
+    const alvo = tem(fallback) ? fallback : [...rooms][0] || "generalist";
+    partes.push({
+      parteId: "construir",
+      room: alvo,
+      subtask: `${objective} [etapa construir]`,
+      dependeDe: [],
+    });
+  }
+
+  const raiz = partes.map((p) => p.parteId);
+
+  // revisar: qa-engineer como review (se não existe, usa tech-lead como revisor).
+  const revisor = tem("qa-engineer")
+    ? "qa-engineer"
+    : tem("tech-lead")
+      ? "tech-lead"
+      : raiz.length > 0
+        ? partes[0].room
+        : fallback;
+  partes.push({
+    parteId: "revisar",
+    room: revisor,
+    subtask: `${objective} [etapa revisar: review do que foi construído]`,
+    dependeDe: [...raiz],
+  });
+
+  // proteger: pula se security-engineer não existe na casa.
+  let antesDeTestar = ["revisar"];
+  if (tem("security-engineer")) {
+    partes.push({
+      parteId: "proteger",
+      room: "security-engineer",
+      subtask: `${objective} [etapa proteger: hardening/segurança]`,
+      dependeDe: ["revisar"],
+    });
+    antesDeTestar = ["proteger"];
+  }
+
+  // testar: qa-engineer (se já foi usado como revisor, continua — é o dono do teste).
+  const testador = tem("qa-engineer") ? "qa-engineer" : revisor;
+  partes.push({
+    parteId: "testar",
+    room: testador,
+    subtask: `${objective} [etapa testar: valida entrega final]`,
+    dependeDe: antesDeTestar,
+  });
+
+  console.log(
+    `🛏️ Líder casa-dev: DAG [${partes.map((p) => `${p.parteId}(${p.room})`).join(" → ")}]`
+  );
+  return partes;
+}
+
+/** casa-negocios / casa-dados: quarto-alvo → tech-lead (consolida). */
+function buildSimpleDAG(
+  objective: string,
+  fallback: string,
+  techLeadRoom: string,
+  rooms: Set<string>
+): PipelineParte[] {
+  const alvo = rooms.has(fallback) ? fallback : [...rooms][0] || "generalist";
+  const partes: PipelineParte[] = [
+    {
+      parteId: "construir",
+      room: alvo,
+      subtask: `${objective} [etapa construir]`,
+      dependeDe: [],
+    },
+  ];
+  if (rooms.has(techLeadRoom) && techLeadRoom !== alvo) {
+    partes.push({
+      parteId: "consolidar",
+      room: techLeadRoom,
+      subtask: `${objective} [etapa consolidar: tech-lead consolida a entrega]`,
+      dependeDe: ["construir"],
+    });
+  }
+  console.log(
+    `🛏️ Líder: DAG simples [${partes.map((p) => `${p.parteId}(${p.room})`).join(" → ")}]`
+  );
+  return partes;
 }

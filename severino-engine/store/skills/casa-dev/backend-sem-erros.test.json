@@ -1,0 +1,15 @@
+{
+  "skill_id": "backend-sem-erros",
+  "casos": [
+    {
+      "nome": "Validacao estrita de input com Zod",
+      "entrada": "req.body com campos incorretos",
+      "deveConter": ["zod", "400"]
+    },
+    {
+      "nome": "Tratamento seguro de excecoes",
+      "entrada": "erro interno no banco",
+      "deveConter": ["backend", "valide"]
+    }
+  ]
+}

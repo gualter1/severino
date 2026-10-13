@@ -51,6 +51,8 @@ export async function dispatchCarta(
     domainHint: opts.domainHint,
   });
   queue.enqueue(carta);
+  // Anti-starvation: promove cartas esperando há >5min antes de despachar
+  try { queue.envelhecer(5); } catch { /* fila antiga sem guard */ }
 
   const puladas = new Set<string>();
   let ultimoErro = "";
@@ -88,9 +90,14 @@ export async function dispatchCarta(
         continue;
       }
 
-      // 2) ACEITO → roda pipeline da casa
+      // 2) ACEITO → roda pipeline DAG da casa + atualiza quadro interno
       carimbar(work, "carteiro", houseId, "ACEITO", veredito.motivo);
-      const { artefato, relatorios } = await runHousePipeline(work, houseId, {
+      const { runHousePipelineDAG } = await import("./pipeline.js");
+      const { boardDaCasa } = await import("../houses/house-board.js");
+      const board = boardDaCasa(houseId);
+      board.adicionar(work, decision.room || "tech-lead");
+
+      const { artefato, relatorios } = await runHousePipelineDAG(work, houseId, {
         ensureRobot: async ({ houseId: h, room }) =>
           factoryEnsureRobot({
             action: "create-new",
@@ -99,11 +106,19 @@ export async function dispatchCarta(
             houseId: h,
             houseName: h,
             room,
-            reason: `pipeline carta ${work.cartaId}`,
+            reason: `pipeline DAG carta ${work.cartaId}`,
           }),
         runTask: (robotId, task) => factoryRunTask(robotId, task),
       });
       aceitou = true;
+      // Quadro interno: A_FAZER → FAZENDO → EM_REVIEW → PRONTO
+      try {
+        board.mover(work.cartaId, "A_FAZER", "FAZENDO");
+        board.mover(work.cartaId, "FAZENDO", "EM_REVIEW");
+        board.mover(work.cartaId, "EM_REVIEW", "PRONTO");
+      } catch (err: any) {
+        console.log(`🗂️ Quadro: ${err?.message || err}`);
+      }
       // 3) Setor educação: Guanabara analisa e consolida na loja (best-effort, nunca quebra a entrega)
       let guanabara: { versao?: string; uteis?: number; lixo?: number } = {};
       try {

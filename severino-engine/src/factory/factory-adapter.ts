@@ -8,6 +8,7 @@
  */
 
 import type { PostmanDecision } from "../core/engine.js";
+import { isMock } from "./model-router.js";
 
 // ---------------------------------------------------------------------------
 // Tipos mínimos do robotFactory real (duck-typing, sem acoplamento forte)
@@ -99,6 +100,9 @@ export async function ensureRobot(decision: PostmanDecision): Promise<RealRobot>
 
 /** Executa a tarefa no robô (real ou stub). */
 export async function runTask(robotId: string, task: { objective: string; domain: string; id?: string }): Promise<any> {
+  if (isMock()) {
+    console.log("⚠️ MOCK ativo — defina NINEROUTER_API_KEY (veja .env.example)");
+  }
   const factory = await loadRealFactory();
   if (factory && typeof factory.executeTask === "function") {
     try {

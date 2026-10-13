@@ -44,7 +44,7 @@ function extrairSkills(artefato: any): string[] {
   return Array.isArray(v) ? v.map(String) : [];
 }
 
-function relatorioOk(
+export function relatorioOk(
   carta: Carta,
   houseId: string,
   robotId: string,
@@ -68,7 +68,7 @@ function relatorioOk(
   };
 }
 
-function relatorioFalha(
+export function relatorioFalha(
   carta: Carta,
   houseId: string,
   robotId: string,
@@ -138,6 +138,97 @@ export async function runHousePipeline(
 
   console.log(
     `🛏️ Pipeline ${houseId} concluído: ${relatorios.filter((r) => r.rodouSemErros).length}/${relatorios.length} etapa(s) sem erro`
+  );
+  return { artefato, relatorios };
+}
+
+/**
+ * 🕸️ runHousePipelineDAG — executa as partes do `breakDownDAG` respeitando
+ * `dependeDe` (ordem topológica em ondas: partes sem dependência pendente
+ * rodam em paralelo via Promise.all; a próxima onda espera a anterior).
+ *
+ * Cada parte gera 1 RelatorioAgente (mesmos relatorioOk/relatorioFalha do
+ * pipeline sequencial). Falha de uma parte não aborta as demais — a parte
+ * dependente ainda roda (registra-se o artefato que houver). `runHousePipeline`
+ * segue intacto; o dispatch migra quando quiser.
+ */
+export async function runHousePipelineDAG(
+  carta: Carta,
+  houseId: string,
+  deps: PipelineDeps
+): Promise<PipelineResult> {
+  const leader = new HouseLeader(houseId);
+  const partes = leader.breakDownDAG(carta);
+  const relatorios: RelatorioAgente[] = [];
+  const concluidas = new Set<string>();
+  const restantes = new Map(partes.map((p) => [p.parteId, p]));
+  let artefato: any = null;
+
+  async function executarParte(
+    parteId: string,
+    room: string,
+    subtask: string
+  ): Promise<void> {
+    console.log(
+      `🕸️ DAG [${houseId}/${room}] parte "${parteId}": "${subtask.slice(0, 80)}"`
+    );
+    let robotId = "desconhecido";
+    let role = room;
+    try {
+      const robot = await deps.ensureRobot({ houseId, room });
+      robotId = robot.robotId;
+      role = robot.role || room;
+      const taskId = `${carta.cartaId}-${parteId}`;
+      const domain = carta.domainHint || houseId;
+      // runSandbox nunca lança — devolve {ok, artefato?, erro?}
+      const sb = await runSandbox(taskId, role, async () =>
+        deps.runTask(robotId, { objective: subtask, domain, id: taskId })
+      );
+      if (sb.ok) {
+        artefato = sb.artefato;
+        relatorios.push(relatorioOk(carta, houseId, robotId, role, sb.artefato));
+        console.log(`🕸️ DAG parte "${parteId}" ✅ ${robotId} concluiu`);
+      } else {
+        relatorios.push(
+          relatorioFalha(carta, houseId, robotId, role, sb.erro || "erro desconhecido no sandbox")
+        );
+        console.log(`🕸️ DAG parte "${parteId}" ❌ ${robotId} falhou: ${sb.erro}`);
+      }
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      relatorios.push(relatorioFalha(carta, houseId, robotId, role, msg));
+      console.log(`🕸️ DAG parte "${parteId}" ❌ exceção: ${msg}`);
+    }
+    concluidas.add(parteId);
+  }
+
+  // Ondas topológicas: enquanto houver restantes, executa em paralelo todas
+  // cujas dependências já concluíram. Sem progresso = ciclo/dependência
+  // fantasma → executa o restante em ordem de inserção para não travar.
+  while (restantes.size > 0) {
+    const prontas = [...restantes.values()].filter((p) =>
+      p.dependeDe.every((d) => concluidas.has(d))
+    );
+    if (prontas.length === 0) {
+      console.log(
+        `🕸️ DAG sem progresso (ciclo ou dependeDe fantasma?) — drenando ${restantes.size} parte(s) em sequência`
+      );
+      for (const p of restantes.values()) {
+        await executarParte(p.parteId, p.room, p.subtask);
+        restantes.delete(p.parteId);
+      }
+      break;
+    }
+    await Promise.all(
+      prontas.map((p) => executarParte(p.parteId, p.room, p.subtask))
+    );
+    for (const p of prontas) restantes.delete(p.parteId);
+  }
+
+  // Relatórios saem na ordem de conclusão das ondas (ramos paralelos podem
+  // intercalar); o consumidor identifica cada parte pelo role/resumo.
+  console.log(
+    `🕸️ DAG ${houseId} concluído: ${relatorios.filter((r) => r.rodouSemErros).length}/${relatorios.length} parte(s) sem erro`
   );
   return { artefato, relatorios };
 }

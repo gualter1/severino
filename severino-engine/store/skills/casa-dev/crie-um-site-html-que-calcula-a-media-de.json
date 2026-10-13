@@ -6,14 +6,19 @@
   ],
   "resumo": "Aprendizado de: crie um site html que calcula a media de notas de alunos de um ano letivo",
   "dependencias": [],
-  "versao_estavel": "1.0.0",
-  "prompt": "# 📚 Consolidado Guanabara\n\n_Gerado a partir de 3 relatório(s)._\n\n## ✅ Úteis (6)\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n\n## 🗑️ Lixo (0)\n- (nenhum ruído descartado)\n",
+  "versao_estavel": "1.0.1",
+  "prompt": "# 📚 Consolidado Guanabara\n\n_Gerado a partir de 3 relatório(s)._\n\n## ✅ Úteis (6)\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n\n## 🗑️ Lixo (0)\n- (nenhum ruído descartado)\n\n\n<!-- aprendizado (1.0.1) -->\n# 📚 Consolidado Guanabara\n\n_Gerado a partir de 5 relatório(s)._\n\n## ✅ Úteis (10)\n- Execução stub local (fábrica real indisponível).\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n\n## 🗑️ Lixo (0)\n- (nenhum ruído descartado)\n",
   "tools": [],
   "historicoVersoes": [
     {
       "versao": "1.0.0",
       "motivo": "Consolidado inicial Guanabara",
       "em": "2026-10-13T14:32:43.272Z"
+    },
+    {
+      "versao": "1.0.1",
+      "motivo": "Consolidado Guanabara",
+      "em": "2026-10-13T14:49:24.849Z"
     }
   ]
 }

@@ -55,10 +55,19 @@ export {
   type RelatorioAgente,
 } from "./carta.js";
 export { TaskQueue, globalTaskQueue } from "./task-queue.js";
-export { runHousePipeline, type PipelineDeps, type PipelineResult, type PipelineRobot } from "./pipeline.js";
+export { runHousePipeline, runHousePipelineDAG, relatorioOk, relatorioFalha, type PipelineDeps, type PipelineResult, type PipelineRobot } from "./pipeline.js";
 export {
   dispatchCarta,
   type DispatchCartaOpts,
   type DispatchCartaResult,
   type DispatchCartaError,
 } from "./dispatch-carta.js";
+
+// ---- Quadro e Casas ----
+export {
+  HouseBoard,
+  boardDaCasa,
+  listarQuadros,
+  type ColunaQuadro,
+  type ItemQuadro,
+} from "../houses/house-board.js";

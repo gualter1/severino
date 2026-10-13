@@ -5,6 +5,15 @@
 
 import { SkillResumo } from "./skill-types.js";
 import { SkillStore } from "./skill-store.js";
+import { promises as fs } from "fs";
+import { join, resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+import { SkillTestCase } from "./skill-tests.js";
+
+const __filenameGuanabara = fileURLToPath(import.meta.url);
+const __dirnameGuanabara = dirname(__filenameGuanabara);
+const REPO_ROOT_GUANABARA = resolve(__dirnameGuanabara, "../../");
+const SKILLS_STORE_GUANABARA = join(REPO_ROOT_GUANABARA, "store", "skills");
 
 export interface GuanabaraAnalise {
   uteis: string[];
@@ -125,14 +134,55 @@ export class Guanabara {
   }
 
   /**
-   * Mini-teste interno (stub determinístico):
-   * - lê a skill
-   * - passou se prompt não-vazio E (sem avaliações OU taxaSucesso >= 0.5)
-   *
-   * ⚠️ Placeholder: suite real deve executar a skill num sandbox contra
-   * casos de teste versionados e medir pass-rate.
+   * Mini-teste interno:
+   * - Tenta a suite real (`runSkillTests`) com casos de
+   *   `store/skills/*\/<skill_id>.test.json`, se o arquivo existir.
+   * - Senão, cai no stub determinístico antigo (prompt não-vazio E
+   *   taxaSucesso ausente ou >= 0.5).
+   * - Nunca lança: qualquer erro volta ao stub.
    */
   async testeInterno(skill_id: string): Promise<{ passou: boolean; detalhe: string }> {
+    try {
+      const casos = await this.carregarCasosDeTeste(skill_id);
+      if (casos && casos.length > 0) {
+        const { runSkillTests } = await import("./skill-tests.js");
+        const resultado = await runSkillTests(skill_id, casos, this.store);
+        const detalhe =
+          `suite real (${casos.length} casos): passRate=${resultado.passRate} — ` +
+          resultado.detalhes.join(" | ");
+        console.log(`🎓 testeInterno ${skill_id}: ${resultado.passou ? "PASSOU" : "FALHOU"} — ${detalhe}`);
+        return { passou: resultado.passou, detalhe };
+      }
+    } catch (e: any) {
+      console.log(`🎓 testeInterno ${skill_id}: suite real falhou (${e?.message || e}) — caindo no stub.`);
+    }
+    return this.testeInternoStub(skill_id);
+  }
+
+  /**
+   * Localiza `store/skills/<qualquer-casa>/<skill_id>.test.json` e
+   * retorna os casos (`{skill_id, casos}`), ou null se não existir.
+   */
+  private async carregarCasosDeTeste(skill_id: string): Promise<SkillTestCase[] | null> {
+    const casas = await fs.readdir(SKILLS_STORE_GUANABARA).catch(() => [] as string[]);
+    for (const casa of casas) {
+      const candidato = join(SKILLS_STORE_GUANABARA, casa, `${skill_id}.test.json`);
+      try {
+        const raw = await fs.readFile(candidato, "utf-8");
+        const parsed = JSON.parse(raw) as { skill_id: string; casos: SkillTestCase[] };
+        if (Array.isArray(parsed.casos)) return parsed.casos;
+      } catch {
+        // tenta próxima casa
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Stub determinístico original (fallback):
+   * passou se prompt não-vazio E (sem avaliações OU taxaSucesso >= 0.5).
+   */
+  private async testeInternoStub(skill_id: string): Promise<{ passou: boolean; detalhe: string }> {
     const skill = await this.store.alugar(skill_id);
     if (!skill) {
       return { passou: false, detalhe: `skill ${skill_id} não encontrada` };
