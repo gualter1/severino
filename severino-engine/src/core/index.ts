@@ -43,3 +43,22 @@ export async function dispatch(objective: string, hints: TaskHints = {}): Promis
 
 export { severinoEngine };
 export type { PostmanDecision, TaskHints };
+
+// ---- Ciclo da Carta + Filas (não interfere no dispatch clássico) ----
+export {
+  criarCarta,
+  carimbar,
+  type Carta,
+  type Carimbo,
+  type DecisaoCarimbo,
+  type DecisaoCasa,
+  type RelatorioAgente,
+} from "./carta.js";
+export { TaskQueue, globalTaskQueue } from "./task-queue.js";
+export { runHousePipeline, type PipelineDeps, type PipelineResult, type PipelineRobot } from "./pipeline.js";
+export {
+  dispatchCarta,
+  type DispatchCartaOpts,
+  type DispatchCartaResult,
+  type DispatchCartaError,
+} from "./dispatch-carta.js";

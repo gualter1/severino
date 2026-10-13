@@ -1,7 +1,8 @@
 /**
  * 🌐 WebChannel — Canal HTTP nativo (node:http puro, sem Fastify).
  * Endpoints:
- *   POST /engine/tasks -> { objective, domain?, teamId?, room? } => JSON dispatch
+ *   POST /engine/tasks -> { objective, domain?, teamId?, room? } => JSON dispatch (clássico)
+ *   POST /engine/cartas -> { objective, priority?, domainHint? } => JSON dispatchCarta
  *   GET  /health       -> { status: "ok" }
  */
 
@@ -43,6 +44,65 @@ export class WebChannel implements Channel {
       if (req.method === "GET" && url.pathname === "/health") {
         res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
         res.end(JSON.stringify({ status: "ok", engine: "severino", timestamp: new Date().toISOString() }));
+        return;
+      }
+
+      // POST /engine/cartas — ciclo da carta (fila + líder + pipeline + Guanabara)
+      if (req.method === "POST" && (url.pathname === "/engine/cartas" || url.pathname === "/engine/carta")) {
+        let body = "";
+        req.on("data", (chunk) => { body += chunk; });
+        req.on("end", async () => {
+          try {
+            const data = JSON.parse(body || "{}");
+            const objective = data.objective;
+            if (!objective || typeof objective !== "string") {
+              res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+              res.end(JSON.stringify({ error: "Campo 'objective' obrigatório." }));
+              return;
+            }
+            const { dispatchCarta } = await import("../core/dispatch-carta.js");
+            const result = await dispatchCarta(objective, {
+              priority: typeof data.priority === "number" ? data.priority : undefined,
+              domainHint: typeof data.domainHint === "string" ? data.domainHint : undefined,
+            });
+            res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify(result, null, 2));
+          } catch (err: any) {
+            const carta = (err as any)?.carta;
+            res.writeHead(carta ? 422 : 500, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: err.message || "Erro no ciclo da carta.", carta: carta || undefined }, null, 2));
+          }
+        });
+        return;
+      }
+
+      // GET /engine/fila — quadro externo de tarefas
+      if (req.method === "GET" && url.pathname === "/engine/fila") {
+        try {
+          const { globalTaskQueue } = await import("../core/task-queue.js");
+          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ tamanho: globalTaskQueue.size(), cartas: globalTaskQueue.list() }, null, 2));
+        } catch (err: any) {
+          res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: err.message || "Erro ao listar fila." }));
+        }
+        return;
+      }
+
+      // GET /engine/skills?query=...&houseId=... — busca resumida na loja
+      if (req.method === "GET" && url.pathname === "/engine/skills") {
+        try {
+          const { SkillStore } = await import("../skills/skill-store.js");
+          const store = new SkillStore();
+          const q = url.searchParams.get("query") || "";
+          const houseId = url.searchParams.get("houseId") || undefined;
+          const resultados = await store.buscar(q, houseId || undefined);
+          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ query: q, resultados }, null, 2));
+        } catch (err: any) {
+          res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: err.message || "Erro ao buscar skills." }));
+        }
         return;
       }
 
@@ -92,9 +152,42 @@ export class WebChannel implements Channel {
         return;
       }
 
+      // POST /engine/cartas — ciclo da carta (cria → fila → pipeline da casa)
+      if (req.method === "POST" && url.pathname === "/engine/cartas") {
+        let body = "";
+        req.on("data", (chunk) => { body += chunk; });
+        req.on("end", async () => {
+          try {
+            const data = JSON.parse(body || "{}");
+            const objective = data.objective;
+            if (!objective || typeof objective !== "string") {
+              res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+              res.end(JSON.stringify({ error: "Campo 'objective' obrigatório." }));
+              return;
+            }
+            const { dispatchCarta } = await import("../core/dispatch-carta.js");
+            const result = await dispatchCarta(objective, {
+              priority: data.priority,
+              domainHint: data.domainHint,
+            });
+            res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify(result, null, 2));
+          } catch (err: any) {
+            // dispatchCarta lança Error com .carta anexada quando esgota tentativas
+            const carta = (err as any)?.carta;
+            res.writeHead(carta ? 422 : 500, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({
+              error: err.message || "Erro interno no motor.",
+              ...(carta ? { carta } : {}),
+            }));
+          }
+        });
+        return;
+      }
+
       // 404
       res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: "Endpoint não encontrado. Use POST /engine/tasks ou GET /health" }));
+      res.end(JSON.stringify({ error: "Endpoint não encontrado. Use POST /engine/tasks, POST /engine/cartas ou GET /health" }));
     });
 
     await new Promise<void>((resolve) => {

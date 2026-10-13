@@ -1,0 +1,16 @@
+{
+  "skill_id": "js-calculo-seguro",
+  "tags": ["javascript", "calculo", "validacao"],
+  "resumo": "Cálculo aritmético seguro com validações em JavaScript",
+  "dependencias": [],
+  "versao_estavel": "1.0.0",
+  "prompt": "Use BigInt para cálculos monetários e sempre verifique divisão por zero.",
+  "tools": ["fs"],
+  "historicoVersoes": [
+    {
+      "versao": "1.0.0",
+      "motivo": "Seed inicial",
+      "em": "2026-10-13T10:00:00.000Z"
+    }
+  ]
+}

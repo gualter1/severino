@@ -1,0 +1,19 @@
+{
+  "skill_id": "criar-endpoint-de-vendas-com-webhook",
+  "tags": [
+    "sales",
+    "negocios"
+  ],
+  "resumo": "Aprendizado de: criar endpoint de vendas com webhook",
+  "dependencias": [],
+  "versao_estavel": "1.0.0",
+  "prompt": "# 📚 Consolidado Guanabara\n\n_Gerado a partir de 1 relatório(s)._\n\n## ✅ Úteis (2)\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n\n## 🗑️ Lixo (0)\n- (nenhum ruído descartado)\n",
+  "tools": [],
+  "historicoVersoes": [
+    {
+      "versao": "1.0.0",
+      "motivo": "Consolidado inicial Guanabara",
+      "em": "2026-10-13T14:32:56.337Z"
+    }
+  ]
+}

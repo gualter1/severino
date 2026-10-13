@@ -1,0 +1,16 @@
+{
+  "skill_id": "backend-sem-erros",
+  "tags": ["backend", "validacao", "zod"],
+  "resumo": "Padrão validado de endpoint com Zod sem erros comuns",
+  "dependencias": [],
+  "versao_estavel": "1.0.0",
+  "prompt": "Como um expert em backend, valide todos os inputs usando Zod e retorne 400 em caso de erro.",
+  "tools": ["fs", "shell"],
+  "historicoVersoes": [
+    {
+      "versao": "1.0.0",
+      "motivo": "Seed inicial",
+      "em": "2026-10-13T10:00:00.000Z"
+    }
+  ]
+}

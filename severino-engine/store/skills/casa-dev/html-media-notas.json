@@ -1,0 +1,16 @@
+{
+  "skill_id": "html-media-notas",
+  "tags": ["html", "css", "media", "notas"],
+  "resumo": "Exemplo da tarefa do dono: média de notas em HTML/CSS",
+  "dependencias": [],
+  "versao_estavel": "1.0.0",
+  "prompt": "Crie uma interface limpa que aceite 3 notas e calcule a média, exibindo o status aprovado/reprovado.",
+  "tools": ["fs"],
+  "historicoVersoes": [
+    {
+      "versao": "1.0.0",
+      "motivo": "Seed inicial",
+      "em": "2026-10-13T10:00:00.000Z"
+    }
+  ]
+}

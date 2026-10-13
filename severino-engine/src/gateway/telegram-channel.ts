@@ -31,6 +31,18 @@ export class TelegramChannel implements Channel {
       this.bot = new Telegraf(this.token!);
 
       const answer = async (text: string, from: string): Promise<string> => {
+        // Comando /carta usa o ciclo completo; demais textos usam dispatch clássico
+        if (text.startsWith("/carta ")) {
+          const obj = text.replace(/^\/carta\s*/, "").trim();
+          try {
+            const { dispatchCarta } = await import("../core/dispatch-carta.js");
+            const r = await dispatchCarta(obj);
+            const g = (r as any).guanabara;
+            return `📮 Carta ${r.carta.cartaId} ENTREGUE em ${r.houseId}: ${r.entrega.reason} (${r.relatorios.length} relatório(s)${g?.versao ? `, skill v${g.versao}` : ""})`;
+          } catch (err: any) {
+            return `📮 Carta falhou: ${err?.message || err}`;
+          }
+        }
         const raw = await onMessage({ channel: "telegram", from, text });
         try {
           const parsed = JSON.parse(raw);
@@ -39,6 +51,15 @@ export class TelegramChannel implements Channel {
         } catch { /* usa raw */ }
         return raw.slice(0, 4000);
       };
+
+      this.bot.command("carta", async (ctx: any) => {
+        const text = (ctx.message?.text || "").replace(/^\/carta\s*/, "").trim();
+        if (!text) {
+          await ctx.reply("Uso: /carta <objetivo da tarefa> (ciclo completo com líder + pipeline + Guanabara)");
+          return;
+        }
+        await ctx.reply(await answer(`/carta ${text}`, String(ctx.from?.id || "tg")));
+      });
 
       this.bot.command("task", async (ctx: any) => {
         const text = (ctx.message?.text || "").replace(/^\/task\s*/, "").trim();

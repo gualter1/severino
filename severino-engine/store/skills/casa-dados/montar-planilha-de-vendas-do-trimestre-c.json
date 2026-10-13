@@ -1,0 +1,19 @@
+{
+  "skill_id": "montar-planilha-de-vendas-do-trimestre-c",
+  "tags": [
+    "sales",
+    "dados"
+  ],
+  "resumo": "Aprendizado de: montar planilha de vendas do trimestre com funil por vendedor",
+  "dependencias": [],
+  "versao_estavel": "1.0.0",
+  "prompt": "# 📚 Consolidado Guanabara\n\n_Gerado a partir de 1 relatório(s)._\n\n## ✅ Úteis (2)\n- Relatório sintético gerado a partir da resposta\n- manter o padrão da etapa\n\n## 🗑️ Lixo (0)\n- (nenhum ruído descartado)\n",
+  "tools": [],
+  "historicoVersoes": [
+    {
+      "versao": "1.0.0",
+      "motivo": "Consolidado inicial Guanabara",
+      "em": "2026-10-13T14:33:11.717Z"
+    }
+  ]
+}
