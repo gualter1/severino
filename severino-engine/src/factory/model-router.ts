@@ -16,6 +16,8 @@ export interface CompleteOptions {
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
+  /** Timeout por chamada em ms (default 60s, ENV SEVERINO_LLM_TIMEOUT_MS). */
+  timeoutMs?: number;
 }
 
 export interface CompleteResult {
@@ -74,14 +76,23 @@ export async function complete(
       stream: false,
     };
 
-    const response = await fetch(`${baseUrl()}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    const timeoutMs = opts.timeoutMs ?? Number(process.env.SEVERINO_LLM_TIMEOUT_MS || 180000);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl()}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
       const err = await response.text();

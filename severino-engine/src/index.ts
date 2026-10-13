@@ -65,3 +65,8 @@ if (isMain) {
 
 export { dispatch, registry, webChannel, telegramChannel, HOUSES };
 export type { DispatchResult, TaskHints };
+
+// ---- FASE 1/2/3: dashboard, skill-tests Fase 2, grill-me ----
+export { getDashboardHtml } from "./gateway/dashboard-html.js";
+export { runGrillMe, type GrillResult } from "./core/grill.js";
+export { runSkillTests, type SkillTestCase, type SkillTestResult } from "./skills/skill-tests.js";

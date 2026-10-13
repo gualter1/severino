@@ -1,0 +1,18 @@
+{
+  "skill_id": "skill-teste-turing",
+  "tags": [
+    "t"
+  ],
+  "resumo": "r",
+  "dependencias": [],
+  "versao_estavel": "1.0.0",
+  "prompt": "Esta skill calcula média e mediana de notas.",
+  "tools": [],
+  "historicoVersoes": [
+    {
+      "versao": "1.0.0",
+      "motivo": "t",
+      "em": "2026-10-13T15:54:18.062Z"
+    }
+  ]
+}

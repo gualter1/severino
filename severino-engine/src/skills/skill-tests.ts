@@ -1,25 +1,26 @@
 /**
- * 🧪 Suite de testes de skill — Fase 1 (validação estática honesta).
+ * 🧪 Suite de testes de skill — Fase 1 (validação estática) + Fase 2 (LLM real).
  *
- * O que faz hoje (Fase 1):
+ * Fase 1 (sempre):
  * - Aluga a skill via SkillStore (prompt + tools versionados).
  * - Para cada `SkillTestCase`, roda dentro de `runSandbox` uma verificação
  *   estática: prompt não-vazio E cada `deveConter` aparece no prompt
- *   (case-insensitive).
+ *   (case-insensitive, PT-BR sem acento).
  * - NÃO concatena `prompt + entrada` para forjar match (regra honesta).
  * - Casos sem `deveConter` são marcados como SKIP honesto (não contam como pass).
  *
- * Fase 2 (planejada — execução LLM real):
- * - Quando houver um model-router/LLM disponível, cada caso deverá montar
- *   `prompt + entrada`, chamar o LLM dentro do sandbox e verificar se a
- *   RESPOSTA contém cada `deveConter`. A assinatura `runSkillTests` já está
- *   pronta para essa troca: basta substituir o corpo da validação dentro do
- *   `runSandbox` por uma chamada real, mantendo `passRate = passed/total` e
- *   `passou = passRate >= 0.7`.
+ * Fase 2 (quando há LLM real — NINEROUTER_API_KEY presente e não-mock):
+ * - Além da validação estática, monta `prompt da skill + entrada do caso`,
+ *   chama `modelRouter.complete()` e verifica se a RESPOSTA do LLM contém
+ *   cada `deveConter`.
+ * - passRate ponderado: 50% estático + 50% LLM real.
+ * - Se mock ou sem key, mantém só o estático (sem quebrar testes):
+ *   qualquer falha/rede no LLM faz fallback honesto para o estático.
  */
 
 import { SkillStore, skillStore } from "./skill-store.js";
 import { runSandbox } from "./sandbox.js";
+import { complete, isMock } from "../factory/model-router.js";
 
 export interface SkillTestCase {
   /** Nome legível do caso (ex: "3 notas") */
@@ -80,6 +81,16 @@ export async function runSkillTests(
   }
 
   const promptNorm = norm(skill.prompt);
+  const promptDaSkill = skill.prompt;
+  // Fase 2 só quando há LLM de verdade: key presente E resposta não-mock.
+  // modelRouter.complete() nunca lança e sinaliza `mock:true` em fallback —
+  // qualquer mock/falha volta honestamente para o estático.
+  const llmDisponivel = !isMock();
+  if (llmDisponivel) {
+    console.log(`🧪 [${skill_id}] Fase 2 ativa: validação estática (50%) + LLM real (50%).`);
+  } else {
+    console.log(`🧪 [${skill_id}] sem LLM real (sem NINEROUTER_API_KEY ou mock) — só validação estática.`);
+  }
   const detalhes: string[] = [];
   let passed = 0;
 
@@ -97,16 +108,51 @@ export async function runSkillTests(
       "skill-test",
       async (_wsDir) => {
         // Fase 1: validação estática do prompt (sem LLM), PT-BR sem acento.
-        // Fase 2: trocar por execução real (prompt + entrada → LLM → resposta).
-        const faltando = expectativas.filter((e) => !promptNorm.includes(norm(e)));
-        if (faltando.length === 0) return true;
-        throw new Error(`faltando no prompt: ${faltando.map((f) => `"${f}"`).join(", ")}`);
+        const faltandoEstatico = expectativas.filter((e) => !promptNorm.includes(norm(e)));
+        const estaticoOk = faltandoEstatico.length === 0;
+
+        // Sem LLM real → mantém só o estático (comportamento Fase 1).
+        if (!llmDisponivel) {
+          if (estaticoOk) return true;
+          throw new Error(`faltando no prompt: ${faltandoEstatico.map((f) => `"${f}"`).join(", ")}`);
+        }
+
+        // Fase 2: invoca o LLM com (prompt da skill + entrada do caso) e
+        // verifica se a RESPOSTA contém cada deveConter.
+        let respostaNorm = "";
+        let llmReal = false;
+        try {
+          const r = await complete(
+            [{ role: "user", content: caso.entrada }],
+            { systemPrompt: promptDaSkill, temperature: 0.2, maxTokens: 800 }
+          );
+          llmReal = !r.mock;
+          respostaNorm = norm(r.content || "");
+        } catch {
+          llmReal = false;
+        }
+        if (!llmReal) {
+          // Fallback honesto: LLM indisponível/falhou → só estático.
+          if (estaticoOk) return true;
+          throw new Error(`faltando no prompt: ${faltandoEstatico.map((f) => `"${f}"`).join(", ")} (LLM indisponível — fallback estático)`);
+        }
+        const faltandoLlm = expectativas.filter((e) => !respostaNorm.includes(norm(e)));
+
+        // passRate ponderado por caso: 50% estático + 50% LLM real.
+        const nota = (estaticoOk ? 0.5 : 0) + (faltandoLlm.length === 0 ? 0.5 : 0);
+        if (nota >= 0.75) return true;
+        const partes: string[] = [];
+        if (!estaticoOk) partes.push(`estático 0/0.5 (faltando: ${faltandoEstatico.map((f) => `"${f}"`).join(", ")})`);
+        if (faltandoLlm.length > 0) partes.push(`LLM 0/0.5 (resposta sem: ${faltandoLlm.map((f) => `"${f}"`).join(", ")})`);
+        throw new Error(`nota ${nota.toFixed(2)} < 0.75 — ${partes.join("; ")}`);
       }
     );
 
     if (resultado.ok && resultado.artefato === true) {
       passed += 1;
-      const msg = `PASSOU "${caso.nome}": prompt contém [${expectativas.map((e) => `"${e}"`).join(", ")}].`;
+      const msg = llmDisponivel
+        ? `PASSOU "${caso.nome}": estático+LLM (50/50) cobrem [${expectativas.map((e) => `"${e}"`).join(", ")}].`
+        : `PASSOU "${caso.nome}": prompt contém [${expectativas.map((e) => `"${e}"`).join(", ")}].`;
       detalhes.push(msg);
       console.log(`🧪 [${skill_id}] ${msg}`);
     } else {

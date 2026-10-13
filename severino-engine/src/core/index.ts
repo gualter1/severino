@@ -71,3 +71,9 @@ export {
   type ColunaQuadro,
   type ItemQuadro,
 } from "../houses/house-board.js";
+
+// ---- Grill-me opt-in (ADR-002 §8) ----
+export { runGrillMe, type GrillResult } from "./grill.js";
+
+// ---- Dashboard HTML (GET /ui) ----
+export { getDashboardHtml } from "../gateway/dashboard-html.js";

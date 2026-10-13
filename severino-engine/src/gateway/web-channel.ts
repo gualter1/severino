@@ -1,8 +1,10 @@
 /**
  * 🌐 WebChannel — Canal HTTP nativo (node:http puro, sem Fastify).
  * Endpoints:
+ *   GET  / /ui            -> dashboard HTML (Kanban das Casas)
  *   POST /engine/tasks -> { objective, domain?, teamId?, room? } => JSON dispatch (clássico)
  *   POST /engine/cartas -> { objective, priority?, domainHint? } => JSON dispatchCarta
+ *   POST /engine/grill  -> { cartaId, objective?, opinioes? } => consenso grill-me (ADR-002 §8)
  *   GET  /health       -> { status: "ok" }
  */
 
@@ -37,6 +39,19 @@ export class WebChannel implements Channel {
       if (req.method === "OPTIONS") {
         res.writeHead(204);
         res.end();
+        return;
+      }
+
+      // GET /ui e GET / — dashboard HTML (Kanban das Casas)
+      if (req.method === "GET" && (url.pathname === "/ui" || url.pathname === "/")) {
+        try {
+          const { getDashboardHtml } = await import("./dashboard-html.js");
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(getDashboardHtml());
+        } catch (err: any) {
+          res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(`<h1>Erro no dashboard</h1><pre>${(err.message || "erro").replace(/</g, "&lt;")}</pre>`);
+        }
         return;
       }
 
@@ -235,9 +250,38 @@ export class WebChannel implements Channel {
         return;
       }
 
+      // POST /engine/grill { cartaId, objective?, opinioes? } — grill-me opt-in (ADR-002 §8)
+      if (req.method === "POST" && url.pathname === "/engine/grill") {
+        let body = "";
+        req.on("data", (chunk) => { body += chunk; });
+        req.on("end", async () => {
+          try {
+            const data = JSON.parse(body || "{}");
+            const cartaId = data.cartaId;
+            if (!cartaId || typeof cartaId !== "string") {
+              res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+              res.end(JSON.stringify({ error: "Campo 'cartaId' obrigatório." }));
+              return;
+            }
+            const opinioes = Array.isArray(data.opinioes)
+              ? data.opinioes.filter((o: any) => typeof o === "string")
+              : [];
+            const objective = typeof data.objective === "string" ? data.objective : undefined;
+            const { runGrillMe } = await import("../core/grill.js");
+            const result = await runGrillMe(cartaId, opinioes, objective);
+            res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ cartaId, ...result }, null, 2));
+          } catch (err: any) {
+            res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: err.message || "Erro no grill-me." }));
+          }
+        });
+        return;
+      }
+
       // 404
       res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: "Endpoint não encontrado. Use POST /engine/tasks, POST /engine/cartas ou GET /health" }));
+      res.end(JSON.stringify({ error: "Endpoint não encontrado. Use GET /ui, POST /engine/tasks, POST /engine/cartas, POST /engine/grill ou GET /health" }));
     });
 
     await new Promise<void>((resolve) => {
