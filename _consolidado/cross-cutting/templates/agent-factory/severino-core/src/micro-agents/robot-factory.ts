@@ -35,15 +35,17 @@ export class RobotFactoryAgent {
       const data = await fs.readFile(teamsPath, 'utf-8');
       const state = JSON.parse(data);
       // Reconstruct teams
+      const robotToTeam = new Map<string, string>();
       for (const teamData of state.teams || []) {
         this.teams.set(teamData.teamId, {
           teamId: teamData.teamId,
           name: teamData.name,
           domain: teamData.domain,
-          robotIds: teamData.robotIds,
+          robotIds: [...(teamData.robotIds || [])],
           status: teamData.status || 'active',
           totalTasksCompleted: teamData.totalTasksCompleted || 0,
         });
+        for (const rid of teamData.robotIds || []) robotToTeam.set(rid, teamData.teamId);
       }
       // Reconstruct robots by scanning each robot folder for agent.json
       // (roomsDir contains subfolders per robot)
@@ -58,10 +60,15 @@ export class RobotFactoryAgent {
             const agent = JSON.parse(agentContent);
             // Only create RobotInstance if not already present (maybe from team load)
             if (!this.robots.has(robotId)) {
+              // 1) teams.json mapping wins 2) agent.json teamId 3) prefix inference
+              let teamId: string | undefined = robotToTeam.get(robotId) || agent.teamId;
+              if (!teamId || teamId === 'unknown') {
+                teamId = this.inferTeamFromPrefix(robotId, agent);
+              }
               const robot: RobotInstance = {
                 robotId,
                 role: agent.role || 'unknown',
-                teamId: agent.teamId || 'unknown',
+                teamId,
                 roomDir: join(roomsDir, robotId),
                 capabilities: agent.capabilities || [],
                 status: 'idle',
@@ -71,8 +78,8 @@ export class RobotFactoryAgent {
               if (!this.teams.has(robot.teamId)) {
                 this.teams.set(robot.teamId, {
                   teamId: robot.teamId,
-                  name: `Auto-loaded Team ${robot.teamId}`,
-                  domain: robot.domain || 'backend',
+                  name: `Legacy ${robot.teamId}`,
+                  domain: (agent.allowedDomains && agent.allowedDomains[0]) || agent.domain || 'backend',
                   robotIds: [],
                   status: 'active',
                   totalTasksCompleted: 0,
@@ -84,17 +91,67 @@ export class RobotFactoryAgent {
                 team.robotIds.push(robotId);
               }
             }
-          } catch (err) {
+          } catch (err: any) {
             // Ignore errors reading individual agent.json (maybe not a robot folder)
             console.warn(`Could not load agent for robot ${robotId}:`, err.message);
           }
         }
       }
+      // Drop empty placeholder 'unknown' team if it survived from older runs
+      if (this.teams.has('unknown')) {
+        const unk = this.teams.get('unknown')!;
+        if (unk.robotIds.length === 0) {
+          this.teams.delete('unknown');
+        } else {
+          // Migra robôs órfãos do 'unknown' para legacy-* por prefixo e remove o placeholder
+          for (const rid of [...unk.robotIds]) {
+            try {
+              const agentContent = await fs.readFile(join(roomsDir, rid, 'agent.json'), 'utf-8');
+              const agent = JSON.parse(agentContent);
+              const newTeamId = this.inferTeamFromPrefix(rid, agent);
+              if (!this.teams.has(newTeamId)) {
+                this.teams.set(newTeamId, {
+                  teamId: newTeamId,
+                  name: `Legacy ${newTeamId}`,
+                  domain: (agent.allowedDomains && agent.allowedDomains[0]) || agent.domain || 'backend',
+                  robotIds: [],
+                  status: 'active',
+                  totalTasksCompleted: 0,
+                });
+              }
+              const nt = this.teams.get(newTeamId)!;
+              if (!nt.robotIds.includes(rid)) nt.robotIds.push(rid);
+              const rb = this.robots.get(rid);
+              if (rb) rb.teamId = newTeamId;
+            } catch { /* mantém no unknown se não ler agent.json */ }
+          }
+          const still = this.teams.get('unknown')!;
+          if (still.robotIds.every(rid => this.robots.get(rid)?.teamId !== 'unknown')) {
+            this.teams.delete('unknown');
+          }
+        }
+      }
+      // Persiste a migração imediatamente para limpar o teams.json
+      await this.saveState();
       console.log(`💾 Loaded state: ${this.teams.size} teams, ${this.robots.size} robots`);
-    } catch (err) {
+    } catch (err: any) {
       console.warn(`💾 No persisted state found or error loading:`, err.message);
       // No state yet, start fresh
     }
+  }
+
+  private inferTeamFromPrefix(robotId: string, agent: any): string {
+    // robot-backend-xxx -> legacy-backend | robot-prod-team-01-backend-1 -> prod-team-01
+    // robot-backend-street-0864-backend-developer-1 -> backend-street-0864
+    const street = robotId.match(/^(robot-.+-street-\d+)/);
+    if (street) return street[1].replace(/^robot-/, '');
+    const prod = robotId.match(/^robot-(prod-team-\d+)/);
+    if (prod) return prod[1];
+    const legacy = robotId.match(/^robot-(ad-hoc-[a-z]+|backend|frontend|qa|devops|sales|test-team[^-]*|final-test|test-task-team)/);
+    if (legacy) return `legacy-${legacy[1]}`;
+    const generic = robotId.match(/^robot-([a-z]+)/);
+    if (generic) return `legacy-${generic[1]}`;
+    return agent.teamId || 'legacy-orphans';
   }
 
   private inferSkillsFromTask(task: TaskRequest): string[] {

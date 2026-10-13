@@ -45,8 +45,19 @@ export class ResourceBroker {
       throw new Error(`Resource not found: ${resourceId}`);
     }
 
+    if (resource.status === "maintenance") {
+      throw new Error(`Resource ${resourceId} em manutenção`);
+    }
+
+    // Fila: se já está checked-out, permite compartilhamento se for mesmo teamId (leitura concorrente),
+    // senão lança erro com dica de retry
     if (resource.status === "checked-out") {
-      throw new Error(`Resource already checked out by ${resource.checkedOutBy?.robotId}`);
+      const holder = resource.checkedOutBy;
+      if (holder && holder.robotId === robotId) {
+        // Mesmo robô pedindo de novo (retry): devolve token existente
+        return { token: holder.token, expiresAt: holder.expiresAt };
+      }
+      throw new Error(`Resource ${resourceId} em uso por ${holder?.robotId} — tente novamente em alguns segundos (retry)`);
     }
 
     const now = new Date();
